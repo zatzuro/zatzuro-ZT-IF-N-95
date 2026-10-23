@@ -1,0 +1,10 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(5);
+select has_column('public','debts','principal_kind','remaining principal distinguished from original disbursement');
+select has_column('public','debts','source_observation_id','loan source observation retained');
+select has_function('finance_private','populate_documented_debts',array['uuid'],'controlled administrative debt importer');
+select ok((select count(*)=0 from information_schema.role_routine_grants where routine_schema='finance_private' and routine_name='populate_documented_debts' and grantee='anon'),'anon cannot import debts');
+select ok((select count(*)=0 from information_schema.role_routine_grants where routine_schema='finance_private' and routine_name='populate_documented_debts' and grantee='authenticated'),'browser user cannot import debts');
+select * from finish();
+rollback;
