@@ -21,10 +21,10 @@ select throws_ok(
 $$select public.create_cash_transfer('10000000-0000-0000-0000-000000000011','10000000-0000-0000-0000-000000000011',100,'2026-10-23','bad')$$,
 '22023',null,'same-account transfer refused');
 select throws_ok(
-$select public.create_cash_transfer('10000000-0000-0000-0000-000000000013','10000000-0000-0000-0000-000000000012',100,'2026-10-23','bad card')$,
+$$select public.create_cash_transfer('10000000-0000-0000-0000-000000000013','10000000-0000-0000-0000-000000000012',100,'2026-10-23','bad card')$$,
 '42501',null,'credit card cannot be used as a cash transfer account');
 select throws_ok(
-$delete from public.movements where movement_type='transfer'$$,
+$$delete from public.movements where movement_type='transfer'$$,
 '23514',null,'direct deletion of a leg is refused');
 set constraints all immediate;
 reset role;
