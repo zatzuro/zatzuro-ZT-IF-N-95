@@ -49,7 +49,7 @@ begin
   raise exception 'Invalid transfer details' using errcode='22023';
  end if;
  select count(*) into matched from public.accounts
-  where owner_id=uid and id in (p_from,p_to) and is_active and currency='COP';
+  where owner_id=uid and id in (p_from,p_to) and is_active and currency='COP' and account_type<>'credit_card';
  if matched<>2 then raise exception 'Accounts must belong to the same owner and be active COP accounts' using errcode='42501'; end if;
  insert into public.movements(owner_id,account_id,movement_type,occurred_at,description,amount,currency,transfer_group_id,transfer_direction)
  values (uid,p_from,'transfer',p_date,p_description,p_amount,'COP',gid,'out'),
