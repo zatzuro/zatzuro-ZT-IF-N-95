@@ -157,6 +157,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
   <div className="fs-sidebar-bottom"><span>● Base privada conectada</span><button onClick={()=>void onExit()}><LogOut size={15}/> Cerrar sesión</button></div></aside>
   <main className="fs-main"><header className="fs-top"><div><span className="fs-eyebrow">FINANZAS PERSONALES / ESPACIO PRIVADO</span><h1>{active==='Inicio'?'Tu panorama financiero':active}</h1><p>Valores desde Supabase · Sin cifras ficticias en el modo privado</p></div><div className="fs-top-actions">{monthControl}<button title="Recargar información" onClick={()=>void refresh()}><RefreshCcw size={17}/></button></div></header>
   <div className="fs-privacy"><ShieldCheck size={16}/><span>Acceso verificado · RLS por propietario · COP como unidad de conciliación</span></div>
+  {!loading&&data.accounts.length===0&&data.movements.length===0&&<div role="status" className="fs-warning">Las cifras del libro mayor aún no representan tu situación financiera. El archivo de 13 pestañas sí está migrado, pero faltan saldos bancarios y conciliación de cuentas y movimientos para acreditar patrimonio y flujo real.</div>}
   {error&&<div role="alert" className="fs-warning">{error}</div>}
   {message&&<div role="status" className="fs-success">{message}<button onClick={()=>setMessage('')}>Cerrar</button></div>}
   {loading?<div className="fs-panel">Cargando datos privados y verificando integridad…</div>:
