@@ -5,7 +5,7 @@ export interface CategoryRow { id: string; name: string; flow_type: 'income'|'ex
 export interface MovementRow {
  id: string; account_id: string; category_id: string | null; movement_type: string;
  occurred_at: string; description: string; amount: number | string; currency: string;
- amount_cop: number | string | null; external_source?: string | null; external_key?: string | null;
+ amount_cop: number | string | null; external_source?: string | null; external_key?: string | null; transfer_direction?: 'in'|'out'|null;
 }
 export interface BudgetRow { id: string; category_id: string; period_start: string; period_end: string; amount: number | string; currency: string }
 export interface DebtRow { id: string; name: string; lender?: string; balance: number | string; currency: string; balance_kind: string; annual_rate?: number | string | null; due_day?: number | null }
@@ -36,7 +36,7 @@ export function calculateBalances(data: FinanceData) {
    const convertedMovements=data.movements.filter(m=>m.account_id===account.id && converted(m)!==null);
    const delta=convertedMovements.reduce((sum,m)=>{
      const n=converted(m)!;
-     return sum+(m.movement_type==='income'?n: ['expense','card_payment','debt_payment','investment_contribution'].includes(m.movement_type)?-n:0);
+     return sum+(m.movement_type==='income'?n:m.movement_type==='transfer'?(m.transfer_direction==='out'?-n:m.transfer_direction==='in'?n:0): ['expense','card_payment','debt_payment','investment_contribution'].includes(m.movement_type)?-n:0);
    },0);
    return {...account, value:account.account_type==='credit_card'?null:account.currency==='COP'?money(account.opening_balance)+delta:null};
  });

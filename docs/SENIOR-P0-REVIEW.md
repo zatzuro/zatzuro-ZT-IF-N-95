@@ -29,6 +29,6 @@ Pestañas restantes en análisis de mapeo, sin importación automática aún: IN
 
 ## Límites todavía abiertos
 
-No se ha desarrollado par atómico de transferencia de fondos entre cuentas; el alta/CSV de transferencias se retiene deliberadamente. No hay sincronización automática con la hoja, cotizaciones de mercado ni conexión directa con modelo ChatGPT; una integración externa requeriría otra decisión de arquitectura y control de costos.
+Los traspasos COP entre cuentas propias se registran mediante RPC atómica con dos asientos e inmutabilidad. La importación CSV de transferencias externas se retiene en cuarentena hasta conciliar las contrapartidas. No hay sincronización automática con la hoja, cotizaciones de mercado ni conexión directa con modelo ChatGPT; una integración externa requeriría otra decisión de arquitectura y control de costos.
 
 Estados IMPLEMENTADO / QA APROBADO / INTEGRADO / PUBLICADO / VALIDADO REAL se acreditan separadamente. No se permite que CI verde de la demo inicial haga pasar el nuevo HEAD como aprobado.

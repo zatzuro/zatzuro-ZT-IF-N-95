@@ -41,6 +41,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
  const [message,setMessage]=useState('');
  const [form,setForm]=useState<Record<string,string>>({});
  const [openForm,setOpenForm]=useState<Table|null>(null);
+ const [openTransfer,setOpenTransfer]=useState(false);
  const [source,setSource]=useState<ImportKind>('GASTOS');
  const [csv,setCsv]=useState('');
  const [incomeAccount,setIncomeAccount]=useState('');
@@ -83,6 +84,18 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
    if(writeError)throw writeError;
    setMessage('Guardado y auditado en Supabase.');setOpenForm(null);await refresh();
   }catch(e){setError('No se guardó: '+errorText(e));}
+  finally{setBusy(false);}
+ };
+ const transfer=async(e:FormEvent)=>{
+  e.preventDefault();setBusy(true);setError('');
+  try{
+   const amount=Number(form.amount);
+   if(!Number.isFinite(amount)||amount<=0)throw new Error('Importe inválido.');
+   const {error:e}=await client.rpc('create_cash_transfer',{p_from:form.from_account,p_to:form.to_account,p_amount:amount,p_date:form.occurred_at||dateToday(),p_description:form.description});
+   if(e)throw e;
+   setMessage('Transferencia atómica registrada en dos cuentas sin duplicar el consumo.');
+   setOpenTransfer(false);await refresh();
+  }catch(e){setError('Transferencia no registrada: '+errorText(e));}
   finally{setBusy(false);}
  };
  const remove=async(table:Table,id:string)=>{
@@ -130,7 +143,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
    {(data[table] as Array<Record<string,unknown>>).filter(row=>JSON.stringify(row).toLowerCase().includes(search.toLowerCase())).slice(0,100).map(row=>
     <tr key={String(row.id)}><td>{String(row.description??row.name??'Registro')}</td><td>{String(row.movement_type??row.flow_type??row.balance_kind??row.value_kind??row.status??row.account_type??'')}</td><td>{cop(money(row.amount??row.market_value??row.balance??row.target_amount??row.opening_balance??0))}</td>
     <td>{String(row.occurred_at??row.period_start??row.valued_at??row.target_date??'').slice(0,10)}</td>
-    <td><button disabled={busy} className="fs-text-button" onClick={()=>void remove(table,String(row.id))}>Eliminar</button></td></tr>)}
+    <td>{row.movement_type==='transfer'?<small>Asiento inmutable</small>:<button disabled={busy} className="fs-text-button" onClick={()=>void remove(table,String(row.id))}>Eliminar</button>}</td></tr>)}
    {!data[table].length&&<tr><td colSpan={5}>Sin registros. No se mostrarán valores ficticios.</td></tr>}
    </tbody></table></div><small>Mostrando hasta 100 filas; los cálculos usan todos los registros cargados. Las eliminaciones son confirmadas y auditadas.</small></section>;
  const monthControl=<label className="fs-date">Mes <input aria-label="Mes financiero" type="month" value={period} onChange={e=>setPeriod(e.target.value)}/></label>;
@@ -164,9 +177,15 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
     {preview.rejected.length>0&&<details><summary>Razones de rechazo ({preview.rejected.length})</summary><div className="fs-scroll">{preview.rejected.slice(0,50).map((r,i)=><p key={i}>{r.external_key||'Sin ID'}: {r.issues.join('; ')}</p>)}</div></details>}
     <button className="fs-primary" disabled={busy||!preview.accepted.length} onClick={()=>void commitImport()}>Importar solo registros aceptados</button></div>}
    </section><section className="fs-panel"><h2>Mapa de las 13 pestañas</h2><p>Solo INGRESOS y GASTOS están habilitados para importación asistida. Los otros orígenes exigen conciliación de saldos, históricos y estimaciones.</p><div className="fs-scroll">{Object.entries(SHEET_MAPPING).map(([name,note])=><p key={name}><strong>{name}</strong><small>{note}</small></p>)}</div></section></div>}
-  {active==='Configuración'&&<div className="fs-two">{listing('accounts','Cuentas propias')}{listing('categories','Catálogo de categorías')}<section className="fs-panel"><h2>Seguridad e integridad</h2><p>Cuenta autenticada. UUID de sesión no se muestra para evitar divulgaciones innecesarias.</p><p>Las eliminaciones generan auditoría. No se registran automáticamente transferencias sin contrapartida ni gastos estimados.</p><button onClick={()=>void refresh()} className="fs-small">Actualizar controles</button></section></div>}
+  {active==='Configuración'&&<div className="fs-two"><section className="fs-panel"><h2>Traspasos entre cuentas</h2><p>Transferencia atómica: dos asientos iguales y opuestos, sin gasto de consumo.</p><button className="fs-small" onClick={()=>{setForm({occurred_at:dateToday()});setOpenTransfer(true);}}><Plus size={15}/> Transferir entre cuentas</button></section>{listing('accounts','Cuentas propias')}{listing('categories','Catálogo de categorías')}<section className="fs-panel"><h2>Seguridad e integridad</h2><p>Cuenta autenticada. UUID de sesión no se muestra para evitar divulgaciones innecesarias.</p><p>Las eliminaciones generan auditoría. No se registran automáticamente transferencias sin contrapartida ni gastos estimados.</p><button onClick={()=>void refresh()} className="fs-small">Actualizar controles</button></section></div>}
   </>}
   </main>
+  {openTransfer&&<div className="fs-modal-backdrop"><form className="fs-modal" onSubmit={e=>void transfer(e)}><div className="fs-section"><h2>Traspaso entre cuentas COP</h2><button type="button" onClick={()=>setOpenTransfer(false)}>✕</button></div>
+  <label>Origen<select required value={form.from_account||''} onChange={e=>setForm({...form,from_account:e.target.value})}><option value="">Seleccionar</option>{data.accounts.filter(a=>a.currency==='COP'&&a.account_type!=='credit_card').map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+  <label>Destino<select required value={form.to_account||''} onChange={e=>setForm({...form,to_account:e.target.value})}><option value="">Seleccionar</option>{data.accounts.filter(a=>a.currency==='COP'&&a.account_type!=='credit_card').map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+  {field('occurred_at','Fecha','date')}{field('description','Descripción','text')}{field('amount','Importe COP','number')}
+  <button className="fs-primary" disabled={busy} type="submit">Registrar par atómico</button>
+  </form></div>}
   {openForm&&<div className="fs-modal-backdrop" role="presentation"><form className="fs-modal" onSubmit={e=>void createRecord(e)}><div className="fs-section"><h2>Nuevo · {labels[openForm]}</h2><button type="button" onClick={()=>setOpenForm(null)}>✕</button></div>
     {['accounts','categories','debts','investments','goals'].includes(openForm)&&<label>Nombre<input required maxLength={120} value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})}/></label>}
     {openForm==='accounts'&&<><label>Tipo<select value={form.account_type||'checking'} onChange={e=>setForm({...form,account_type:e.target.value})}><option value="checking">Cuenta corriente</option><option value="savings">Ahorros</option><option value="cash">Efectivo</option><option value="credit_card">Tarjeta (solo movimientos)</option><option value="brokerage">Broker</option></select></label>{field('opening_balance','Saldo de apertura COP','number')}</>}
