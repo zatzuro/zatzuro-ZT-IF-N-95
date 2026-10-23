@@ -33,7 +33,7 @@ end $$;
 
 create or replace function finance_private.materialize_source_observations(p_batch uuid)
 returns integer language plpgsql security invoker set search_path='' as $$
-declare affected integer;
+declare affected integer; declare affected_extra integer;
 begin
  if not exists(select 1 from finance_private.source_batches where id=p_batch and status='verified') then
   raise exception 'Source snapshot is not verified' using errcode='23514';
@@ -104,7 +104,56 @@ begin
   )
  on conflict(batch_id,sheet_name,source_row,kind) do nothing;
  get diagnostics affected=row_count;
- return affected;
+ -- The original budget holds income and expense tables side by side: preserve BOTH.
+ insert into public.financial_source_observations(
+  owner_id,batch_id,sheet_name,source_row,kind,description,event_date,amount_cop,provenance,details)
+ select r.owner_id,r.batch_id,r.sheet_name,r.source_row,'budget_expense',
+  coalesce(nullif(r.cells->>11,''),'Partida presupuestada'),
+  case when r.cells->>9 ~ '^\d{4}-\d{2}
+end $$;
+
+revoke all on function finance_private.local_number(text) from public,anon,authenticated;
+revoke all on function finance_private.local_date(text) from public,anon,authenticated;
+revoke all on function finance_private.materialize_source_observations(uuid) from public,anon,authenticated;
+commit;
+ then (r.cells->>9||'-01')::date else null end,
+  finance_private.local_number(r.cells->>13),'estimated',
+  jsonb_build_object('source_snapshot',r.batch_id,'raw_row_sha256',r.row_digest)
+ from finance_private.source_rows r
+ where r.batch_id=p_batch and r.sheet_name='PRESUPUESTO'
+ and r.source_row>=8 and r.cells->>9 ~ '^\d{4}-\d{2}
+end $$;
+
+revoke all on function finance_private.local_number(text) from public,anon,authenticated;
+revoke all on function finance_private.local_date(text) from public,anon,authenticated;
+revoke all on function finance_private.materialize_source_observations(uuid) from public,anon,authenticated;
+commit;
+
+ and nullif(r.cells->>11,'') is not null
+ on conflict(batch_id,sheet_name,source_row,kind) do nothing;
+ get diagnostics affected_extra=row_count;
+ affected:=affected+affected_extra;
+ -- A statement is a receivable obligation, NOT an executed card payment.
+ insert into public.financial_source_observations(
+  owner_id,batch_id,sheet_name,source_row,kind,description,event_date,amount_cop,provenance,details)
+ select r.owner_id,r.batch_id,r.sheet_name,r.source_row,'card_statement',
+  'Factura tarjeta · pago no verificado',
+  finance_private.local_date(r.cells->>1),
+  finance_private.local_number(r.cells->>9),'documented',
+  jsonb_build_object('source_snapshot',r.batch_id,'raw_row_sha256',r.row_digest)
+ from finance_private.source_rows r
+ where r.batch_id=p_batch and r.sheet_name='DAVIVIENDA - TC GZERO'
+ and r.source_row>=9 and r.cells->>0 ~ '^\d+
+end $$;
+
+revoke all on function finance_private.local_number(text) from public,anon,authenticated;
+revoke all on function finance_private.local_date(text) from public,anon,authenticated;
+revoke all on function finance_private.materialize_source_observations(uuid) from public,anon,authenticated;
+commit;
+
+ on conflict(batch_id,sheet_name,source_row,kind) do nothing;
+ get diagnostics affected_extra=row_count;
+ return affected+affected_extra;
 end $$;
 
 revoke all on function finance_private.local_number(text) from public,anon,authenticated;
