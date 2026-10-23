@@ -36,7 +36,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002'
 select ok(not public.is_authorized_owner(),'signed-in but unapproved user is denied');
 select is((select count(*)::int from public.movements),0,'unapproved user cannot read owner data');
 select throws_ok(
- $$insert into public.movements(owner_id,account_id,movement_type,occurred_at,description,amount,currency) values('00000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002','expense','2026-04-02','Unapproved write',100,'COP')$$,
+ $insert into public.accounts(owner_id,name,account_type,currency) values('00000000-0000-0000-0000-000000000002','Unapproved write','savings','COP')$,
  '42501',null,'unapproved user cannot write financial data');
 
 reset role;
