@@ -35,9 +35,9 @@ Estados IMPLEMENTADO / QA APROBADO / INTEGRADO / PUBLICADO / VALIDADO REAL se ac
 
 ## Checkpoint de continuidad — 2026-10-23, auditoría Senior
 
-- Supabase remoto: migraciones 001–010 ya aplicadas, un usuario Auth confirmado y autorizado, 13 manifiestos del archivo fuente cotejados por conteo contra Google Sheets, 491 observaciones tipificadas (12 pestañas con datos, una vacía), cinco saldos documentados de créditos. No reimportar ni duplicar.
-- Evidencia remota RLS (SQL en transacción revertida): propietario autorizado ve 13 estados de pestaña, 491 observaciones y cinco deudas; identidad no autorizada ve cero y no supera la función de autorización; rol anónimo carece de SELECT y EXECUTE de importación.
-- Aún no se han trasladado GASTOS/INGRESOS al libro mayor porque faltan conciliación de cuentas receptoras/origen y saldos iniciales acreditados. 21 documentos GASTOS fueron marcados sin verificar; no reclasificar transferencias como consumo.
+- Supabase remoto: migraciones 001–010 ya aplicadas, un usuario Auth confirmado y autorizado, 13 manifiestos del archivo fuente cotejados por conteo contra Google Sheets, observaciones tipificadas de las hojas con datos y saldos documentados de créditos (sin divulgar conteos privados en este repositorio). No reimportar ni duplicar.
+- Evidencia remota RLS (SQL en transacción revertida): propietario autorizado ve las 13 hojas del archivo privado, observaciones del propietario y sus créditos; identidad no autorizada ve cero y no supera la función de autorización; rol anónimo carece de SELECT y EXECUTE de importación.
+- Aún no se han trasladado GASTOS/INGRESOS al libro mayor porque faltan conciliación de cuentas receptoras/origen y saldos iniciales acreditados. Existen documentos de GASTOS marcados sin verificar; no reclasificar transferencias como consumo.
 - Las cuotas proyectadas de préstamos, los presupuestos y las posiciones eToro sin cotización comprobada permanecen separados de movimientos efectivos y patrimonio actual.
 - El dashboard debe presentar patrimonio y flujo **no conciliados**, sin suponer activos cero ni capital desembolsado a partir de saldo pendiente.
 - Release gate: variables públicas de Pages pendientes de lectura/configuración por operador autorizado; usuario debe probar sesión web real sin compartir contraseña. No integrar hasta CI actual, configuración pública y smoke acreditado.
