@@ -28,7 +28,17 @@ jobs:
           version: 2.121.0
       - run: npm ci
       - run: npm test
+      - name: Require public Supabase configuration
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test "${VITE_SUPABASE_URL}" = 'https://kkuihohwneefcctohcrs.supabase.co'
+          [[ "${VITE_SUPABASE_PUBLISHABLE_KEY}" == sb_publishable_* ]]
       - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - run: supabase start -x studio,mailpit,analytics,vector,imgproxy
       - run: supabase db reset --local
       - run: supabase test db

@@ -38,7 +38,7 @@ export function calculateBalances(data: FinanceData) {
      const n=converted(m)!;
      return sum+(m.movement_type==='income'?n: ['expense','card_payment','debt_payment','investment_contribution'].includes(m.movement_type)?-n:0);
    },0);
-   return {...account, value:account.currency==='COP'?money(account.opening_balance)+delta:null};
+   return {...account, value:account.account_type==='credit_card'?null:account.currency==='COP'?money(account.opening_balance)+delta:null};
  });
  const cash=balances.reduce((sum,a)=>sum+(a.value??0),0);
  const investments=data.investments.reduce((sum,i)=>sum+(converted({...i,amount:i.market_value})??0),0);

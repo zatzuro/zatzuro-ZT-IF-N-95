@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useMemo,useState,type FormEvent} from 'react';
 import type {SupabaseClient,User} from '@supabase/supabase-js';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import {BarChart3, BriefcaseBusiness, CreditCard, FileText, Goal, Home, Landmark, LogOut, Plus, RefreshCcw, ShieldCheck, Sparkles, UploadCloud, Wallet} from 'lucide-react';
+import {BarChart3, BriefcaseBusiness, CreditCard, FileText, Goal, Home, LogOut, Plus, RefreshCcw, ShieldCheck, Sparkles, UploadCloud, Wallet} from 'lucide-react';
 import {budgetStatus,calculateBalances,findings,money,monthly,type FinanceData} from '../domain/private';
 import {previewCsv,SHEET_MAPPING,type ImportKind,type Preview} from '../domain/migration';
 import {formatCop} from '../domain/ledger';
