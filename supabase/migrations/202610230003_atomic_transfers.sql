@@ -21,7 +21,7 @@ create or replace function public.check_transfer_group() returns trigger
 language plpgsql set search_path='' as $$
 declare gid uuid; n int; n_in int; n_out int; owners int; accounts int; minimum numeric; maximum numeric;
 begin
- gid := coalesce(new.transfer_group_id,old.transfer_group_id);
+ if tg_op='DELETE' then gid:=old.transfer_group_id; else gid:=new.transfer_group_id; end if;
  if gid is null then return null; end if;
  select count(*),count(*) filter(where transfer_direction='in'),count(*) filter(where transfer_direction='out'),
         count(distinct owner_id),count(distinct account_id),min(amount),max(amount)
