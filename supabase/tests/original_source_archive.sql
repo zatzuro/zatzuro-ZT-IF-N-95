@@ -1,0 +1,15 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(10);
+select has_schema('finance_private','private archive schema');
+select has_table('finance_private','source_batches','batch audit table');
+select has_table('finance_private','source_sheets','13-source manifest table');
+select has_table('finance_private','source_rows','raw private archive');
+select has_table('public','financial_source_observations','typed reference observations');
+select ok((select relrowsecurity and relforcerowsecurity from pg_class where oid='finance_private.source_rows'::regclass),'archive uses forced RLS');
+select ok((select relrowsecurity and relforcerowsecurity from pg_class where oid='public.financial_source_observations'::regclass),'typed observations use forced RLS');
+select ok((select count(*)=0 from information_schema.role_table_grants where grantee='anon' and table_schema='finance_private' and table_name in ('source_batches','source_sheets','source_rows')),'anon cannot read private archive');
+select ok((select count(*)=0 from information_schema.role_table_grants where grantee='authenticated' and table_schema='finance_private' and table_name='source_rows' and privilege_type in ('INSERT','UPDATE','DELETE')),'browser users cannot modify original archive');
+select ok((select reloptions @> array['security_invoker=true'] from pg_class where oid='public.source_migration_status'::regclass),'migration status view obeys RLS');
+select * from finish();
+rollback;
