@@ -1,6 +1,6 @@
 import { cashFlow, netWorth, type Movement } from './ledger';
 
-export interface AccountRow { id: string; name: string; account_type: string; currency: string; opening_balance: number | string; balance_kind: string }
+export interface AccountRow { id: string; name: string; account_type: string; currency: string; opening_balance: number | string; balance_kind: string; balance_as_of?: string }
 export interface CategoryRow { id: string; name: string; flow_type: 'income'|'expense' }
 export interface MovementRow {
  id: string; account_id: string; category_id: string | null; movement_type: string;
@@ -33,7 +33,9 @@ export function monthly(data: FinanceData, period: string) {
 export function calculateBalances(data: FinanceData) {
  const balances=data.accounts.map(account=>{
    // A snapshot of the account opening balance plus posted movements. Loan and investment valuations are separate.
-   const convertedMovements=data.movements.filter(m=>m.account_id===account.id && converted(m)!==null);
+   // An opening balance is a dated snapshot, not a timeless starting point.
+   // Exclude older and same-day movements to prevent double counting on historical imports.
+   const convertedMovements=data.movements.filter(m=>m.account_id===account.id && (!account.balance_as_of || m.occurred_at>account.balance_as_of) && converted(m)!==null);
    const delta=convertedMovements.reduce((sum,m)=>{
      const n=converted(m)!;
      return sum+(m.movement_type==='income'?n:m.movement_type==='transfer'?(m.transfer_direction==='out'?-n:m.transfer_direction==='in'?n:0): ['expense','card_payment','debt_payment','investment_contribution'].includes(m.movement_type)?-n:0);
