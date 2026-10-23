@@ -1,0 +1,29 @@
+name: Release configuration preflight
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-variables:
+    name: Verify Pages public configuration
+    runs-on: ubuntu-latest
+    env:
+      FINANZAS_PUBLIC_URL: ${{ vars.VITE_SUPABASE_URL }}
+      FINANZAS_PUBLIC_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Check public build values without printing them
+        shell: bash
+        run: |
+          invalid=0
+          if [[ "${FINANZAS_PUBLIC_URL}" != "https://kkuihohwneefcctohcrs.supabase.co" ]]; then
+            echo "::error::GitHub Actions repository variable VITE_SUPABASE_URL missing or does not match existing project"
+            invalid=1
+          fi
+          if [[ "${FINANZAS_PUBLIC_KEY}" != sb_publishable_* ]]; then
+            echo "::error::GitHub Actions repository variable VITE_SUPABASE_PUBLISHABLE_KEY missing or invalid type"
+            invalid=1
+          fi
+          if [[ "${invalid}" != "0" ]]; then exit 1; fi
+          echo "Supabase public build variables are present; key content was not displayed."

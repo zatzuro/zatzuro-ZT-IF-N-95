@@ -1,0 +1,11 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(6);
+select is(finance_private.local_number('$1.234.567,89'),1234567.89::numeric,'localized COP amount parsed');
+select is(finance_private.local_number('-$1.234,56'),-1234.56::numeric,'negative COP number');
+select is(finance_private.local_number('No disponible'),null::numeric,'unavailable loan principal remains NULL');
+select is(finance_private.local_date('23/10/2026'),'2026-10-23'::date,'valid date accepted');
+select is(finance_private.local_date('31/02/2026'),null::date,'invalid date rejected');
+select has_column('public','debts','as_of_date','dated debt balance provenance');
+select * from finish();
+rollback;

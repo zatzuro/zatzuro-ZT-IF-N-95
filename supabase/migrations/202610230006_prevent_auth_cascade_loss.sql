@@ -1,0 +1,21 @@
+-- Prevent accidental Supabase Auth-user removal from cascading deletion of financial history and audit.
+begin;
+alter table public.accounts drop constraint if exists accounts_owner_id_fkey;
+alter table public.accounts add constraint accounts_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+alter table public.categories drop constraint if exists categories_owner_id_fkey;
+alter table public.categories add constraint categories_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+alter table public.movements drop constraint if exists movements_owner_id_fkey;
+alter table public.movements add constraint movements_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+alter table public.budgets drop constraint if exists budgets_owner_id_fkey;
+alter table public.budgets add constraint budgets_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+alter table public.debts drop constraint if exists debts_owner_id_fkey;
+alter table public.debts add constraint debts_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+alter table public.investments drop constraint if exists investments_owner_id_fkey;
+alter table public.investments add constraint investments_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+alter table public.goals drop constraint if exists goals_owner_id_fkey;
+alter table public.goals add constraint goals_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+alter table public.financial_findings drop constraint if exists financial_findings_owner_id_fkey;
+alter table public.financial_findings add constraint financial_findings_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+alter table public.audit_log drop constraint if exists audit_log_owner_id_fkey;
+alter table public.audit_log add constraint audit_log_owner_id_fkey foreign key (owner_id) references auth.users(id) on delete restrict;
+commit;
