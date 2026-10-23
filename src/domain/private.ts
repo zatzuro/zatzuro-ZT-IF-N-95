@@ -46,7 +46,7 @@ export function calculateBalances(data: FinanceData) {
  const investments=data.investments.reduce((sum,i)=>sum+(converted({...i,amount:i.market_value})??0),0);
  const debts=data.debts.reduce((sum,d)=>sum+(converted({...d,amount:d.balance})??0),0);
  const excluded=balances.filter(a=>a.value===null).length+data.investments.filter(i=>i.currency!=='COP').length+data.debts.filter(d=>d.currency!=='COP').length;
- return {balances,cash,investments,debts,assets:cash+investments,net:netWorth(cash+investments,debts),partial:excluded>0};
+ return {balances,cash,investments,debts,assets:cash+investments,net:netWorth(cash+investments,debts),partial:excluded>0 || data.accounts.length===0 || data.accounts.some(a=>a.balance_kind!=='documented') || data.debts.some(d=>d.balance_kind!=='documented')};
 }
 export function budgetStatus(data: FinanceData, period: string) {
  return data.budgets.filter(b=>b.period_start<=period+'-31' && b.period_end>=period+'-01').map(b=>{

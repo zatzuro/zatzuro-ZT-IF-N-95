@@ -5,6 +5,7 @@ import {BarChart3, BriefcaseBusiness, CreditCard, FileText, Goal, Home, LogOut, 
 import {budgetStatus,calculateBalances,findings,money,monthly,type FinanceData} from '../domain/private';
 import {previewCsv,SHEET_MAPPING,type ImportKind,type Preview} from '../domain/migration';
 import {formatCop} from '../domain/ledger';
+import SourceMigration from './SourceMigration';
 
 const empty=():FinanceData=>({accounts:[],categories:[],movements:[],budgets:[],debts:[],investments:[],goals:[],financial_findings:[]});
 const tables=['accounts','categories','movements','budgets','debts','investments','goals','financial_findings'] as const;
@@ -144,7 +145,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
    <div className="fs-table-wrap"><table><thead><tr><th>Descripción</th><th>Tipo / estado</th><th>Importe</th><th>Fecha</th><th>Acción</th></tr></thead><tbody>
    {(data[table] as Array<Record<string,unknown>>).filter(row=>JSON.stringify(row).toLowerCase().includes(search.toLowerCase())).slice(0,100).map(row=>
     <tr key={String(row.id)}><td>{String(row.description??row.name??'Registro')}</td><td>{String(row.movement_type??row.flow_type??row.balance_kind??row.value_kind??row.status??row.account_type??'')}</td><td>{cop(money(row.amount??row.market_value??row.balance??row.target_amount??row.opening_balance??0))}</td>
-    <td>{String(row.occurred_at??row.period_start??row.valued_at??row.target_date??'').slice(0,10)}</td>
+    <td>{String(row.occurred_at??row.period_start??row.valued_at??row.target_date??row.as_of_date??'').slice(0,10)}</td>
     <td>{row.movement_type==='transfer'?<small>Asiento inmutable</small>:<button disabled={busy} className="fs-text-button" onClick={()=>void remove(table,String(row.id))}>Eliminar</button>}</td></tr>)}
    {!data[table].length&&<tr><td colSpan={5}>Sin registros. No se mostrarán valores ficticios.</td></tr>}
    </tbody></table></div><small>Mostrando hasta 100 filas; los cálculos usan todos los registros cargados. Las eliminaciones son confirmadas y auditadas.</small></section>;
@@ -178,7 +179,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
     {preview&&<div className="fs-import-summary"><p><b>{preview.accepted.length}</b> aceptados · <b>{preview.rejected.length}</b> en cuarentena · <b>{preview.duplicate}</b> duplicados</p><p>Ingresos a cargar: {cop(preview.income)} / Consumo: {cop(preview.expenses)}</p><p>Los registros en cuarentena requieren revisión de categoría, contrapartida, cuenta o documento.</p>
     {preview.rejected.length>0&&<details><summary>Razones de rechazo ({preview.rejected.length})</summary><div className="fs-scroll">{preview.rejected.slice(0,50).map((r,i)=><p key={i}>{r.external_key||'Sin ID'}: {r.issues.join('; ')}</p>)}</div></details>}
     <button className="fs-primary" disabled={busy||!preview.accepted.length} onClick={()=>void commitImport()}>Importar solo registros aceptados</button></div>}
-   </section><section className="fs-panel"><h2>Mapa de las 13 pestañas</h2><p>Solo INGRESOS y GASTOS están habilitados para importación asistida. Los otros orígenes exigen conciliación de saldos, históricos y estimaciones.</p><div className="fs-scroll">{Object.entries(SHEET_MAPPING).map(([name,note])=><p key={name}><strong>{name}</strong><small>{note}</small></p>)}</div></section></div>}
+   </section><section className="fs-panel"><h2>Mapa de las 13 pestañas</h2><p>Las 13 pestañas se conservan íntegramente en archivo privado. La conversión al libro mayor sigue controlada: solo INGRESOS y GASTOS admiten importación asistida, previa verificación de cuenta y categoría.</p><div className="fs-scroll">{Object.entries(SHEET_MAPPING).map(([name,note])=><p key={name}><strong>{name}</strong><small>{note}</small></p>)}</div></section></div>}
   {active==='Configuración'&&<div className="fs-two"><section className="fs-panel"><h2>Traspasos entre cuentas</h2><p>Transferencia atómica: dos asientos iguales y opuestos, sin gasto de consumo.</p><button className="fs-small" onClick={()=>{setForm({occurred_at:dateToday()});setOpenTransfer(true);}}><Plus size={15}/> Transferir entre cuentas</button></section>{listing('accounts','Cuentas propias')}{listing('categories','Catálogo de categorías')}<section className="fs-panel"><h2>Seguridad e integridad</h2><p>Cuenta autenticada. UUID de sesión no se muestra para evitar divulgaciones innecesarias.</p><p>Las eliminaciones generan auditoría. No se registran automáticamente transferencias sin contrapartida ni gastos estimados.</p><button onClick={()=>void refresh()} className="fs-small">Actualizar controles</button></section></div>}
   </>}
   </main>
