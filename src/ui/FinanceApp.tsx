@@ -6,6 +6,7 @@ import {budgetStatus,calculateBalances,findings,money,monthly,type FinanceData} 
 import {previewCsv,SHEET_MAPPING,type ImportKind,type Preview} from '../domain/migration';
 import {formatCop} from '../domain/ledger';
 import SourceMigration from './SourceMigration';
+import SourceObservations from './SourceObservations';
 
 const empty=():FinanceData=>({accounts:[],categories:[],movements:[],budgets:[],debts:[],investments:[],goals:[],financial_findings:[]});
 const tables=['accounts','categories','movements','budgets','debts','investments','goals','financial_findings'] as const;
@@ -182,6 +183,11 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
     <button className="fs-primary" disabled={busy||!preview.accepted.length} onClick={()=>void commitImport()}>Importar solo registros aceptados</button></div>}
    </section><section className="fs-panel"><h2>Mapa de las 13 pestañas</h2><p>Las 13 pestañas se conservan íntegramente en archivo privado. La conversión al libro mayor sigue controlada: solo INGRESOS y GASTOS admiten importación asistida, previa verificación de cuenta y categoría.</p><div className="fs-scroll">{Object.entries(SHEET_MAPPING).map(([name,note])=><p key={name}><strong>{name}</strong><small>{note}</small></p>)}</div></section></div>}
   {active==='Importación'&&<SourceMigration client={client}/>}
+  {active==='Ingresos'&&<SourceObservations client={client} kinds={['income_document']} title="Ingresos de origen · pendientes de cuenta receptora"/>}
+  {active==='Gastos'&&<SourceObservations client={client} kinds={['expense_document']} title="Gastos de origen · clasificados y por conciliar"/>}
+  {active==='Créditos'&&<SourceObservations client={client} kinds={['credit_balance','card_statement','loan_projection']} title="Saldos documentados y calendario previsto"/>}
+  {active==='Inversiones'&&<SourceObservations client={client} kinds={['investment_deposit','investment_position']} title="eToro · depósitos y posiciones de origen"/>}
+  {active==='Presupuesto'&&<SourceObservations client={client} kinds={['budget_income','budget_expense']} title="Presupuesto de origen · previsiones, no pagos"/>}
   {active==='Configuración'&&<div className="fs-two"><section className="fs-panel"><h2>Traspasos entre cuentas</h2><p>Transferencia atómica: dos asientos iguales y opuestos, sin gasto de consumo.</p><button className="fs-small" onClick={()=>{setForm({occurred_at:dateToday()});setOpenTransfer(true);}}><Plus size={15}/> Transferir entre cuentas</button></section>{listing('accounts','Cuentas propias')}{listing('categories','Catálogo de categorías')}<section className="fs-panel"><h2>Seguridad e integridad</h2><p>Cuenta autenticada. UUID de sesión no se muestra para evitar divulgaciones innecesarias.</p><p>Las eliminaciones generan auditoría. No se registran automáticamente transferencias sin contrapartida ni gastos estimados.</p><button onClick={()=>void refresh()} className="fs-small">Actualizar controles</button></section></div>}
   </>}
   </main>
