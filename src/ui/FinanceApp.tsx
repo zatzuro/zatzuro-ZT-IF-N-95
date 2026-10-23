@@ -122,20 +122,22 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
  };
  const commitImport=async()=>{
   if(!preview?.accepted.length)return;
-  if(!window.confirm('Importar '+preview.accepted.length+' registros CONCILIADOS a Supabase. Los rechazados no se importarán. ¿Continuar?'))return;
-  setBusy(true);setError('');let count=0;
+  if(preview.accepted.length>1000){setError('Un lote no puede superar 1.000 registros. Divídelo por períodos y vuelve a validar.');return;}
+  if(!window.confirm('Importar '+preview.accepted.length+' registros conciliados en UNA TRANSACCIÓN. Si un asiento falla, no se guardará ninguno. ¿Continuar?'))return;
+  setBusy(true);setError('');
   try{
-   for(let i=0;i<preview.accepted.length;i+=100){
-    const rows=preview.accepted.slice(i,i+100).map(r=>({owner_id:user.id,external_source:r.external_source,external_key:r.external_key,occurred_at:r.occurred_at,description:r.description,amount:r.amount,currency:'COP',movement_type:r.movement_type,
-      account_id:data.accounts.find(a=>a.name===r.accountName)?.id,
-      category_id:data.categories.find(c=>c.name===r.categoryName&&c.flow_type===(r.movement_type==='income'?'income':'expense'))?.id}));
-    if(rows.some(r=>!r.account_id||!r.category_id))throw new Error('El mapeo cambió después de la vista previa; no se continuará.');
-    const {error:e}=await client.from('movements').upsert(rows,{onConflict:'owner_id,external_source,external_key',ignoreDuplicates:true});
-    if(e)throw e;count+=rows.length;
-   }
-   setMessage('Proceso terminado: '+count+' filas enviadas con llave idempotente. Verifica el libro de movimientos y el control de totales.');
+   const rows=preview.accepted.map(r=>({
+     external_source:r.external_source,external_key:r.external_key,occurred_at:r.occurred_at,
+     description:r.description,amount:r.amount,movement_type:r.movement_type,
+     account_id:data.accounts.find(a=>a.name===r.accountName)?.id,
+     category_id:data.categories.find(c=>c.name===r.categoryName&&c.flow_type===(r.movement_type==='income'?'income':'expense'))?.id
+   }));
+   if(rows.some(r=>!r.account_id||!r.category_id))throw new Error('Cuenta/categoría ya no coinciden; el lote no fue importado.');
+   const {data:inserted,error:e}=await client.rpc('import_reconciled_movements',{p_rows:rows});
+   if(e)throw e;
+   setMessage('Importación transaccional: '+Number(inserted)+' registros nuevos y '+(rows.length-Number(inserted))+' duplicados ignorados. Conciliar con el origen.');
    setCsv('');setPreview(null);await refresh();
-  }catch(e){setError('Importación parcial o detenida tras '+count+' filas. Recargar/validar antes de reintentar: '+errorText(e));await refresh();}
+  }catch(e){setError('Importación rechazada, sin escrituras parciales: '+errorText(e));await refresh();}
   finally{setBusy(false);}
  };
  const listing=(table:Table,heading:string)=> <section className="fs-panel"><div className="fs-section"><h2>{heading}</h2><button onClick={()=>open(table)} className="fs-small"><Plus size={15}/> Crear</button></div>
