@@ -49,7 +49,7 @@ export const SHEET_MAPPING:Record<string,string>={
  'CAJA SOCIAL - VIVIENDA':'Calendario de amortización proyectado',
  'OCCIDENTE - LIBRANZA':'Cuotas estimadas, conciliar con extractos',
  'DAVIVIENDA - TC GZERO':'Factura documentada, evitar doble conteo'};
-export function previewCsv(kind:ImportKind,csv:string,data:FinanceData):Preview {
+export function previewCsv(kind:ImportKind,csv:string,data:FinanceData,incomeAccountName=''):Preview {
  const rows=parseCsv(csv);const required=kind==='GASTOS'?gastoHeader:ingresoHeader;
  if(rows.length && required.some(h=>!(h in rows[0]))) throw new Error('Faltan columnas obligatorias: '+required.filter(h=>!(h in rows[0])).join(', '));
  const known=new Set(data.movements.filter(m=>m.external_source&&m.external_key).map(m=>m.external_source+':'+m.external_key));
@@ -71,7 +71,7 @@ export function previewCsv(kind:ImportKind,csv:string,data:FinanceData):Preview 
   if(amount===null||amount<=0)issues.push('Importe confirmado no positivo');
   if(ambiguous)issues.push('Transferencia/aporte: conciliación de contrapartida obligatoria');
   if(kind==='GASTOS'&&/por clasificar|verificar/i.test(r['Categoría']||''))issues.push('Categoría sin verificar');
-  const accountName=kind==='GASTOS'?(r['Cuenta origen']||''):'';
+  const accountName=kind==='GASTOS'?(r['Cuenta origen']||''):incomeAccountName;
   const categoryName=kind==='GASTOS'?(r['Categoría']||''):'Ingresos laborales';
   if(!accountName)issues.push('Cuenta origen sin mapeo');
   if(!data.accounts.some(a=>a.name===accountName&&a.currency==='COP'))issues.push('Cuenta no registrada en el dashboard');
