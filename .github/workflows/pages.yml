@@ -49,3 +49,10 @@ jobs:
           path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Live smoke — HTTP, anonymous RLS and private login UI
+        env:
+          FINANZAS_PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+          FINANZAS_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          FINANZAS_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: node scripts/smoke-pages.mjs
