@@ -18,7 +18,6 @@ export default function Entry(){
  const [demo,setDemo]=useState(false);
  const [email,setEmail]=useState('');
  const [password,setPassword]=useState('');
- const [create,setCreate]=useState(false);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
  useEffect(()=>{
@@ -46,9 +45,9 @@ export default function Entry(){
   e.preventDefault();if(!financeClient)return;
   setBusy(true);setError('');
   try{
-   const response=create?await financeClient.auth.signUp({email,password}):await financeClient.auth.signInWithPassword({email,password});
+   const response=await financeClient.auth.signInWithPassword({email,password});
    if(response.error)throw response.error;
-   setError(create?'Registro recibido. Confirma el correo y solicita autorización del propietario.':'Sesión iniciada; verificando acceso...');
+   setError('Sesión iniciada; verificando acceso...');
   }catch(e){setError(e instanceof Error?e.message:'Error de autenticación');}
   finally{setBusy(false);}
  };
@@ -62,9 +61,8 @@ export default function Entry(){
    user&&!allowed?<div role="alert" className="fs-warning">Tu cuenta inició sesión, pero todavía no está autorizada como propietaria. Solicita la activación administrativa tras verificar tu identidad. <button onClick={()=>financeClient?.auth.signOut()}>Cerrar sesión</button></div>:
    <form onSubmit={e=>void submit(e)}>
     <label>Correo electrónico<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></label>
-    <label>Contraseña<input type="password" autoComplete={create?'new-password':'current-password'} minLength={8} required value={password} onChange={e=>setPassword(e.target.value)}/></label>
-    <button className="fs-primary" type="submit" disabled={busy}>{busy?'Verificando…':create?'Crear cuenta restringida':'Ingresar al dashboard'}</button>
-    <button className="fs-text-button" type="button" onClick={()=>{setCreate(v=>!v);setError('');}}>{create?'Ya tengo cuenta':'Registrarme (requiere aprobación)'}</button>
+    <label>Contraseña<input type="password" autoComplete="current-password" minLength={8} required value={password} onChange={e=>setPassword(e.target.value)}/></label>
+    <button className="fs-primary" type="submit" disabled={busy}>{busy?'Verificando…':'Ingresar al dashboard'}</button>
    </form>}
    {error&&<p role="alert" className="fs-warning">{error}</p>}
    <button className="fs-secondary" onClick={()=>setDemo(true)}>Ver demostración con datos ficticios →</button>
