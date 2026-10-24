@@ -25,3 +25,28 @@
 .fs-modal-backdrop{position:fixed;inset:0;background:#0817259c;z-index:40;display:grid;place-items:center;padding:15px}.fs-modal{background:#fff;padding:27px;border-radius:20px;width:min(100%,460px);max-height:92vh;overflow:auto}.fs-form-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:10px}.fs-form-actions>button:first-child{background:#eff2f6;border:0;border-radius:10px;padding:10px 16px}
 @media(max-width:1120px){.fs-two{grid-template-columns:1fr}.fs-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.fs-app{display:block}.fs-sidebar{width:100%;height:auto;position:relative;padding:12px}.fs-brand{margin:3px 12px 10px}.fs-sidebar nav{display:flex;overflow:auto;gap:5px}.fs-nav{white-space:nowrap;font-size:11px;padding:9px}.fs-sidebar-bottom{display:flex;justify-content:space-between;padding:7px}.fs-main{padding:14px}.fs-top{align-items:flex-start}.fs-top h1{font-size:22px}.fs-top p{font-size:11px}.fs-metrics{gap:8px}.fs-metric{padding:12px}.fs-metric strong{font-size:17px}.fs-two{gap:10px}.fs-panel{padding:13px}}
+
+
+/* Archived source data is displayed independently from the reconciled operational ledger. */
+.fs-source{margin-bottom:17px;border-color:#d5e7eb}
+.fs-source-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.fs-source-head h2{font-size:19px;margin:6px 0 8px}
+.fs-source-head p{max-width:730px;margin:0 0 15px}
+.fs-source-kicker{font-size:10px;color:#087a67;letter-spacing:1.1px;font-weight:800}
+.fs-source-status{white-space:nowrap;font-size:11px;font-weight:750;padding:7px 9px;border-radius:16px;background:#fff4e8;color:#8e5612}
+.fs-source-status.ok{background:#e0f7ec;color:#11745c}
+.fs-source-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:9px 0 16px}
+.fs-source-kpis-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.fs-source-kpis>div{padding:13px;border-radius:12px;background:#f4f8fa;display:flex;flex-direction:column;gap:5px}
+.fs-source-kpis strong{font-size:22px;letter-spacing:-.6px;color:#143c46}
+.fs-source-kpis span{font-size:11px;color:#5d7381}
+.fs-source-disclaimer{background:#f5f8fc;border-left:3px solid #5d8de8;padding:10px 12px;color:#445c70!important;border-radius:7px}
+.fs-source-section-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:16px 0 12px;flex-wrap:wrap}
+.fs-source-section-title h3{margin:0;font-size:14px}
+.fs-source-section-title span{font-size:11px;color:#71879a}
+.fs-source-section-title label{font-size:11px;min-width:210px}
+.fs-source-section-title input{margin-top:5px}
+.fs-source-chart{margin:22px 0;padding:12px 4px;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5}
+.fs-source-cell-sub{display:block;font-size:10px;color:#718698;font-weight:400;margin-top:3px}
+.fs-source-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:9px;font-size:11px;color:#7b8da2}
+@media(max-width:720px){.fs-source-head{display:block}.fs-source-status{display:inline-block;margin-bottom:12px}.fs-source-kpis,.fs-source-kpis-three{grid-template-columns:repeat(2,minmax(0,1fr))}}

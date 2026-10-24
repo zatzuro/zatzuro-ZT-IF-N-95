@@ -6,18 +6,18 @@ import {budgetStatus,calculateBalances,findings,money,monthly,type FinanceData} 
 import {previewCsv,SHEET_MAPPING,type ImportKind,type Preview} from '../domain/migration';
 import {formatCop} from '../domain/ledger';
 import SourceMigration from './SourceMigration';
-import SourceObservations from './SourceObservations';
+import SourceDataPanel from './SourceDataPanel';
 import {manualDebtPayload} from '../domain/manualDebt';
 
 const empty=():FinanceData=>({accounts:[],categories:[],movements:[],budgets:[],debts:[],investments:[],goals:[],financial_findings:[]});
 const tables=['accounts','categories','movements','budgets','debts','investments','goals','financial_findings'] as const;
 type Table=typeof tables[number];
-type Module='Inicio'|'Ingresos'|'Gastos'|'Presupuesto'|'Créditos'|'Inversiones'|'Patrimonio'|'Metas'|'Cerebro financiero'|'Importación'|'Configuración';
+type Module='Inicio'|'Ingresos'|'Gastos'|'Presupuesto'|'Créditos'|'Inversiones'|'Patrimonio'|'Metas'|'Cerebro financiero'|'Datos migrados'|'Configuración';
 const menu: {name:Module;icon:typeof Home}[]=[
  {name:'Inicio',icon:Home},{name:'Ingresos',icon:Wallet},{name:'Gastos',icon:Wallet},
  {name:'Presupuesto',icon:FileText},{name:'Créditos',icon:CreditCard},{name:'Inversiones',icon:BriefcaseBusiness},
  {name:'Patrimonio',icon:BarChart3},{name:'Metas',icon:Goal},{name:'Cerebro financiero',icon:Sparkles},
- {name:'Importación',icon:UploadCloud},{name:'Configuración',icon:ShieldCheck}];
+ {name:'Datos migrados',icon:UploadCloud},{name:'Configuración',icon:ShieldCheck}];
 const labels:Record<Table,string>={accounts:'Cuentas',categories:'Categorías',movements:'Movimientos',budgets:'Presupuestos',debts:'Créditos',investments:'Inversiones',goals:'Metas',financial_findings:'Hallazgos'};
 const cop=(n:number)=>formatCop(n);
 const nowPeriod=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'}).slice(0,7);
@@ -169,17 +169,18 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
   {message&&<div role="status" className="fs-success">{message}<button onClick={()=>setMessage('')}>Cerrar</button></div>}
   {loading?<div className="fs-panel">Cargando datos privados y verificando integridad…</div>:
   <>
+  {active==='Inicio'&&<SourceDataPanel client={client} mode="home" referenceDate={dateToday()}/>}
   {['Inicio','Patrimonio'].includes(active)&&<><div className="fs-metrics">{totals.map(metric=><article key={metric.label} className="fs-metric"><small>{metric.label}</small><strong>{metric.value===null?'No conciliado':cop(metric.value)}</strong><span>{metric.note}</span></article>)}</div>
    <div className="fs-two"><section className="fs-panel"><div className="fs-section"><h2>Flujo de caja · 6 meses</h2><span>Ingresos vs consumo · millones COP</span></div>{data.movements.length===0?<p>Gráfica pendiente: todavía no hay movimientos conciliados en el libro mayor. Las observaciones de origen se muestran por separado.</p>:<ResponsiveContainer width="100%" height={270}><BarChart data={six}><CartesianGrid stroke="#eaf0f5" vertical={false}/><XAxis dataKey="period"/><YAxis tickFormatter={v=>String(Math.round(Number(v)/1000000))+'M'}/><Tooltip formatter={v=>cop(Number(v))}/><Bar dataKey="income" name="Ingresos" fill="#16ad83" radius={[5,5,0,0]}/><Bar dataKey="expenses" name="Consumo" fill="#4a83f5" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer>}</section>
    <section className="fs-panel"><h2>Composición patrimonial</h2><div className="fs-breakdown"><div><span>Efectivo / cuentas COP</span><b>{data.accounts.length===0?'Sin cuentas conciliadas':cop(balance.cash)}</b></div><div><span>Inversiones valoradas COP</span><b>{data.investments.length===0?'Sin valoración conciliada':cop(balance.investments)}</b></div><div><span>Pasivos documentados/estimados COP</span><b>{cop(balance.debts)}</b></div></div><p>Los movimientos financieros (traspasos, pagos de tarjeta, aportes) no se contabilizan como consumo. Sin todos los activos y sus fechas de corte, el patrimonio neto no está conciliado.</p><button className="fs-small" onClick={()=>setActive('Configuración')}>Revisar cuentas →</button></section></div></>}
-  {active==='Ingresos'&&<>{listing('movements','Libro de movimientos — ingresos y gastos')}<p className="fs-guidance">Para registrar un ingreso, selecciona “Crear” y asigna una categoría de ingreso.</p></>}
-  {active==='Gastos'&&listing('movements','Libro de movimientos — consumo y movimientos históricos')}
-  {active==='Presupuesto'&&<><section className="fs-panel"><div className="fs-section"><h2>Presupuesto del mes</h2><button className="fs-small" onClick={()=>open('budgets')}><Plus size={15}/> Crear partida</button></div><div className="fs-budget">{budgets.map(b=><div key={b.id}><div><strong>{b.name}</strong><span>{cop(b.spent)} / {cop(b.budget)}</span></div><progress value={b.spent} max={Math.max(b.budget,b.spent,1)}/><small>{b.remaining<0?'Sobrepasado '+cop(-b.remaining):'Disponible '+cop(b.remaining)}</small></div>)}</div>{!budgets.length&&<p>Sin partidas para este mes. Crea categorías de gasto en Configuración.</p>}</section></>}
-  {active==='Créditos'&&listing('debts','Créditos · saldos documentados o estimados')}
-  {active==='Inversiones'&&listing('investments','Inversiones · valoración manual')}
+  {active==='Ingresos'&&<><SourceDataPanel client={client} mode="income" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — ingresos y gastos')}<p className="fs-guidance">Para registrar un ingreso, selecciona “Crear” y asigna una categoría de ingreso.</p></>}
+  {active==='Gastos'&&<><SourceDataPanel client={client} mode="expenses" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — gastos conciliados')}</>}
+  {active==='Presupuesto'&&<><SourceDataPanel client={client} mode="budget" referenceDate={dateToday()}/><section className="fs-panel"><div className="fs-section"><h2>Presupuesto del mes</h2><button className="fs-small" onClick={()=>open('budgets')}><Plus size={15}/> Crear partida</button></div><div className="fs-budget">{budgets.map(b=><div key={b.id}><div><strong>{b.name}</strong><span>{cop(b.spent)} / {cop(b.budget)}</span></div><progress value={b.spent} max={Math.max(b.budget,b.spent,1)}/><small>{b.remaining<0?'Sobrepasado '+cop(-b.remaining):'Disponible '+cop(b.remaining)}</small></div>)}</div>{!budgets.length&&<p>Sin partidas para este mes. Crea categorías de gasto en Configuración.</p>}</section></>}
+  {active==='Créditos'&&<><SourceDataPanel client={client} mode="debts" referenceDate={dateToday()}/>{listing('debts','Créditos · saldos documentados o estimados')}</>}
+  {active==='Inversiones'&&<><SourceDataPanel client={client} mode="investments" referenceDate={dateToday()}/>{listing('investments','Inversiones · valoración manual')}</>}
   {active==='Metas'&&listing('goals','Metas de ahorro')}
   {active==='Cerebro financiero'&&<div className="fs-two"><section className="fs-panel"><h2>Diagnóstico por reglas verificables</h2><p>Analiza los datos registrados, sin inferir valores de mercado ni enviar información a una IA externa.</p>{brain.map((f,i)=><article className="fs-insight" key={f.type+f.title}><small>{f.priority.toUpperCase()} · {f.type}</small><h3>{f.title}</h3><p>{f.detail}</p><strong>Acción sugerida: {f.action}</strong><div><button className="fs-small" disabled={busy} onClick={()=>void analyze(i)}>Guardar hallazgo</button></div></article>)}</section><section className="fs-panel"><h2>Trazabilidad</h2><p>Hallazgos registrados: {data.financial_findings.length}</p><p>Esta función no usa modelos externos ni envía tus movimientos a ChatGPT. Las recomendaciones se explican con reglas y datos del mes.</p></section></div>}
-  {active==='Importación'&&<div className="fs-two"><section className="fs-panel"><h2>Importación controlada desde Google Sheets</h2><p>Exporta una pestaña como CSV UTF-8. La vista previa no escribe ningún dato y rechaza registros ambiguos.</p>
+  {active==='Datos migrados'&&<div className="fs-two"><section className="fs-panel"><h2>Conciliación opcional de archivos CSV históricos</h2><p>Las 13 pestañas originales ya están archivadas y el dashboard lee los datos desde Supabase. Este importador es solo para excepciones históricas conciliadas: no necesitas abrir ni mantener Google Sheets para usar FINANZAS SANTI. La vista previa no modifica datos y rechaza registros ambiguos.</p>
     <label>Origen<select value={source} onChange={e=>{setSource(e.target.value as ImportKind);setCsv('');setPreview(null);}}><option value="GASTOS">GASTOS</option><option value="INGRESOS">INGRESOS</option></select></label>
     {source==='INGRESOS'&&<label>Cuenta receptora verificada<select value={incomeAccount} onChange={e=>setIncomeAccount(e.target.value)}><option value="">Selecciona cuenta</option>{data.accounts.map(a=><option key={a.id} value={a.name}>{a.name}</option>)}</select></label>}
     <label>Archivo CSV<input type="file" accept=".csv,text/csv" onChange={e=>void previewFile(e.target.files?.[0]||null)}/></label>
@@ -188,12 +189,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
     {preview.rejected.length>0&&<details><summary>Razones de rechazo ({preview.rejected.length})</summary><div className="fs-scroll">{preview.rejected.slice(0,50).map((r,i)=><p key={i}>{r.external_key||'Sin ID'}: {r.issues.join('; ')}</p>)}</div></details>}
     <button className="fs-primary" disabled={busy||!preview.accepted.length} onClick={()=>void commitImport()}>Importar solo registros aceptados</button></div>}
    </section><section className="fs-panel"><h2>Mapa de las 13 pestañas</h2><p>Las 13 pestañas se conservan íntegramente en archivo privado. La conversión al libro mayor sigue controlada: solo INGRESOS y GASTOS admiten importación asistida, previa verificación de cuenta y categoría.</p><div className="fs-scroll">{Object.entries(SHEET_MAPPING).map(([name,note])=><p key={name}><strong>{name}</strong><small>{note}</small></p>)}</div></section></div>}
-  {active==='Importación'&&<SourceMigration client={client}/>}
-  {active==='Ingresos'&&<SourceObservations client={client} kinds={['income_document']} title="Ingresos de origen · pendientes de cuenta receptora"/>}
-  {active==='Gastos'&&<SourceObservations client={client} kinds={['expense_document']} title="Gastos de origen · clasificados y por conciliar"/>}
-  {active==='Créditos'&&<SourceObservations client={client} kinds={['credit_balance','card_statement','loan_projection']} title="Saldos documentados y calendario previsto"/>}
-  {active==='Inversiones'&&<SourceObservations client={client} kinds={['investment_deposit','investment_position']} title="eToro · depósitos y posiciones de origen"/>}
-  {active==='Presupuesto'&&<SourceObservations client={client} kinds={['budget_income','budget_expense']} title="Presupuesto de origen · previsiones, no pagos"/>}
+  {active==='Datos migrados'&&<SourceMigration client={client}/>}
   {active==='Configuración'&&<div className="fs-two"><section className="fs-panel"><h2>Traspasos entre cuentas</h2><p>Transferencia atómica: dos asientos iguales y opuestos, sin gasto de consumo.</p><button className="fs-small" onClick={()=>{setForm({occurred_at:dateToday()});setOpenTransfer(true);}}><Plus size={15}/> Transferir entre cuentas</button></section>{listing('accounts','Cuentas propias')}{listing('categories','Catálogo de categorías')}<section className="fs-panel"><h2>Seguridad e integridad</h2><p>Cuenta autenticada. UUID de sesión no se muestra para evitar divulgaciones innecesarias.</p><p>Las eliminaciones generan auditoría. No se registran automáticamente transferencias sin contrapartida ni gastos estimados.</p><button onClick={()=>void refresh()} className="fs-small">Actualizar controles</button></section></div>}
   </>}
   </main>
