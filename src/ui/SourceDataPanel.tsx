@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {Bar,BarChart,CartesianGrid,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts';
-import {documentComparison,inventory,orderedFamily,realNumber,sourceFamily,type Family,type SourceRecord,type SourceSheet} from '../domain/sourceIntelligence';
+import {documentComparison,inventory,orderedFamily,realNumber,type Family,type SourceRecord,type SourceSheet} from '../domain/sourceIntelligence';
 type Mode='home'|Family;
 const currency=(value:number|string|null,iso:'COP'|'USD')=>value===null?'Sin valor documentado':new Intl.NumberFormat('es-CO',{style:'currency',currency:iso,maximumFractionDigits:iso==='USD'?2:0}).format(Number(value));
 const label=(kind:SourceRecord['kind'])=>({
