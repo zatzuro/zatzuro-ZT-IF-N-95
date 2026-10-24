@@ -12,12 +12,12 @@ import {manualDebtPayload} from '../domain/manualDebt';
 const empty=():FinanceData=>({accounts:[],categories:[],movements:[],budgets:[],debts:[],investments:[],goals:[],financial_findings:[]});
 const tables=['accounts','categories','movements','budgets','debts','investments','goals','financial_findings'] as const;
 type Table=typeof tables[number];
-type Module='Inicio'|'Ingresos'|'Gastos'|'Presupuesto'|'Créditos'|'Inversiones'|'Patrimonio'|'Metas'|'Cerebro financiero'|'Importación'|'Configuración';
+type Module='Inicio'|'Ingresos'|'Gastos'|'Presupuesto'|'Créditos'|'Inversiones'|'Patrimonio'|'Metas'|'Cerebro financiero'|'Datos migrados'|'Configuración';
 const menu: {name:Module;icon:typeof Home}[]=[
  {name:'Inicio',icon:Home},{name:'Ingresos',icon:Wallet},{name:'Gastos',icon:Wallet},
  {name:'Presupuesto',icon:FileText},{name:'Créditos',icon:CreditCard},{name:'Inversiones',icon:BriefcaseBusiness},
  {name:'Patrimonio',icon:BarChart3},{name:'Metas',icon:Goal},{name:'Cerebro financiero',icon:Sparkles},
- {name:'Importación',icon:UploadCloud},{name:'Configuración',icon:ShieldCheck}];
+ {name:'Datos migrados',icon:UploadCloud},{name:'Configuración',icon:ShieldCheck}];
 const labels:Record<Table,string>={accounts:'Cuentas',categories:'Categorías',movements:'Movimientos',budgets:'Presupuestos',debts:'Créditos',investments:'Inversiones',goals:'Metas',financial_findings:'Hallazgos'};
 const cop=(n:number)=>formatCop(n);
 const nowPeriod=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'}).slice(0,7);
@@ -180,7 +180,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
   {active==='Inversiones'&&<><SourceDataPanel client={client} mode="investments" referenceDate={dateToday()}/>{listing('investments','Inversiones · valoración manual')}</>}
   {active==='Metas'&&listing('goals','Metas de ahorro')}
   {active==='Cerebro financiero'&&<div className="fs-two"><section className="fs-panel"><h2>Diagnóstico por reglas verificables</h2><p>Analiza los datos registrados, sin inferir valores de mercado ni enviar información a una IA externa.</p>{brain.map((f,i)=><article className="fs-insight" key={f.type+f.title}><small>{f.priority.toUpperCase()} · {f.type}</small><h3>{f.title}</h3><p>{f.detail}</p><strong>Acción sugerida: {f.action}</strong><div><button className="fs-small" disabled={busy} onClick={()=>void analyze(i)}>Guardar hallazgo</button></div></article>)}</section><section className="fs-panel"><h2>Trazabilidad</h2><p>Hallazgos registrados: {data.financial_findings.length}</p><p>Esta función no usa modelos externos ni envía tus movimientos a ChatGPT. Las recomendaciones se explican con reglas y datos del mes.</p></section></div>}
-  {active==='Importación'&&<div className="fs-two"><section className="fs-panel"><h2>Importación controlada desde Google Sheets</h2><p>Exporta una pestaña como CSV UTF-8. La vista previa no escribe ningún dato y rechaza registros ambiguos.</p>
+  {active==='Datos migrados'&&<div className="fs-two"><section className="fs-panel"><h2>Conciliación opcional de archivos CSV históricos</h2><p>Las 13 pestañas originales ya están archivadas y el dashboard lee los datos desde Supabase. Este importador es solo para excepciones históricas conciliadas: no necesitas abrir ni mantener Google Sheets para usar FINANZAS SANTI. La vista previa no modifica datos y rechaza registros ambiguos.</p>
     <label>Origen<select value={source} onChange={e=>{setSource(e.target.value as ImportKind);setCsv('');setPreview(null);}}><option value="GASTOS">GASTOS</option><option value="INGRESOS">INGRESOS</option></select></label>
     {source==='INGRESOS'&&<label>Cuenta receptora verificada<select value={incomeAccount} onChange={e=>setIncomeAccount(e.target.value)}><option value="">Selecciona cuenta</option>{data.accounts.map(a=><option key={a.id} value={a.name}>{a.name}</option>)}</select></label>}
     <label>Archivo CSV<input type="file" accept=".csv,text/csv" onChange={e=>void previewFile(e.target.files?.[0]||null)}/></label>
