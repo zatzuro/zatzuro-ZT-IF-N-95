@@ -21,6 +21,11 @@ create table if not exists public.financial_calendar_events (
  foreign key (owner_id,linked_movement_id) references public.movements(owner_id,id) on delete restrict,
  constraint financial_events_external_pair check ((external_source is null)=(external_key is null)),
  constraint financial_events_paid_requires_ledger check (status<>'paid' or linked_movement_id is not null),
+ constraint financial_events_kind_direction check (
+  (event_kind in ('salary','commission','bonus','credit_advance') and direction='in') or
+  (event_kind in ('expense','card_payment','loan_payment') and direction='out') or
+  event_kind in ('transfer','other')
+ ),
  constraint financial_events_confirmed_needs_source check (certainty<>'confirmed' or length(trim(coalesce(source_reference,'')))>0),
  unique(owner_id,external_source,external_key)
 );
