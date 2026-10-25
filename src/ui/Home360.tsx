@@ -3,15 +3,29 @@ import {AlertTriangle, ArrowRight, CalendarDays, ShieldCheck, Wallet} from 'luci
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import {buildHome360} from '../domain/home360';
 import {cashBreakdown} from '../domain/cashAccounting';
+import {projectDailyCash,type ForecastEvent,type ForecastScenario} from '../domain/cashForecast';
+import type {CalendarEventRow} from './FinancialCalendar';
 import type {FinanceData} from '../domain/private';
 import {formatCop} from '../domain/ledger';
 
-type Destination = 'Configuración' | 'Créditos' | 'Presupuesto' | 'Ingresos' | 'Gastos' | 'Datos migrados' | 'Patrimonio';
-type Props = {data:FinanceData; period:string; today:string; onNavigate:(target:Destination)=>void};
+type Destination = 'Configuración' | 'Créditos' | 'Presupuesto' | 'Ingresos' | 'Gastos' | 'Datos migrados' | 'Patrimonio' | 'Calendario';
+type Props = {data:FinanceData; events:CalendarEventRow[]; period:string; today:string; onNavigate:(target:Destination)=>void};
 const format=(value:number|null) => value===null?'Sin conciliar':formatCop(value);
-export default function Home360({data,period,today,onNavigate}:Props){
+export default function Home360({data,events,period,today,onNavigate}:Props){
  const summary=useMemo(()=>buildHome360(data,period,today),[data,period,today]);
  const [horizon,setHorizon]=useState<30|60|90>(30);
+ const [scenario,setScenario]=useState<ForecastScenario>('base');
+ const [coverageConfirmed,setCoverageConfirmed]=useState(false);
+ const planned=useMemo<ForecastEvent[]>(()=>events.map(e=>({
+  id:e.id,dueDate:e.due_date,direction:e.direction,amountCop:Number(e.amount_cop),
+  certainty:e.certainty,status:e.status,channel:e.channel,kind:e.event_kind,
+  linkedMovementId:e.linked_movement_id
+ })),[events]);
+ const forecast=useMemo(()=>projectDailyCash({
+  today,days:horizon,openingCash:summary.liquidity,calendarVerified:coverageConfirmed&&planned.length>0,
+  events:planned,scenario
+ }),[today,horizon,summary.liquidity,coverageConfirmed,planned,scenario]);
+ const unpaidEvents=events.filter(e=>e.status==='pending'&&e.channel==='bank'&&e.direction==='out');
  const series=useMemo(()=>Array.from({length:6},(_,index)=>{
   const month=new Date(Date.UTC(Number(period.slice(0,4)),Number(period.slice(5,7))-6+index,1)).toISOString().slice(0,7);
   const lastDay=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10);
@@ -62,6 +76,7 @@ export default function Home360({data,period,today,onNavigate}:Props){
   <div className="fs-home360-columns"><section className="fs-panel">
    <div className="fs-section"><h2>Obligaciones y presupuesto</h2><CalendarDays size={18}/></div>
    <div className="fs-home360-facts">
+    <div><span>Eventos futuros de salida registrados</span><strong>{unpaidEvents.length}</strong></div>
     <div><span>Presupuesto restante</span><strong>{format(summary.budgetRemaining)}</strong></div>
     <div><span>Pagos de tarjeta efectuados (período)</span><strong>{format(summary.cardPayments)}</strong></div>
     <div><span>Pagos de deuda efectuados (período)</span><strong>{format(summary.debtPayments)}</strong></div>
@@ -71,14 +86,28 @@ export default function Home360({data,period,today,onNavigate}:Props){
     <div className="fs-home360-references">{summary.dueDayReferences.map(item=>
      <div key={item.id}><span>{item.name}</span><strong>Día {item.day} · solo referencia</strong></div>)}</div>:
     <p>Sin vencimientos de cuota acreditados. No se inventan fechas a partir de un saldo o un cronograma antiguo.</p>}
-   <button type="button" className="fs-small" onClick={()=>onNavigate('Créditos')}>Revisar obligaciones <ArrowRight size={14}/></button>
+   <button type="button" className="fs-small" onClick={()=>onNavigate('Calendario')}>Revisar calendario <ArrowRight size={14}/></button>
   </section><section className="fs-panel">
    <div className="fs-section"><h2>Proyección de liquidez</h2><AlertTriangle size={18}/></div>
    <div className="fs-home360-horizons" role="group" aria-label="Horizonte de proyección">
     {([30,60,90] as const).map(days=><button type="button" key={days} aria-pressed={horizon===days} className={horizon===days?'active':''} onClick={()=>setHorizon(days)}>{days} días</button>)}
    </div>
-   <div className="fs-home360-projections"><div><span>Saldo previsto a {horizon} días</span><strong>Sin base verificable</strong></div>
-    <div><span>Primer día de insuficiencia</span><strong>No evaluable</strong></div></div>
+   <label className="fs-home360-coverage"><input type="checkbox" checked={coverageConfirmed} onChange={e=>setCoverageConfirmed(e.target.checked)}/>
+    Confirmo únicamente para esta simulación que he revisado los compromisos e ingresos del horizonte. No equivale a conciliación bancaria.</label>
+   <label className="fs-home360-scenario">Escenario<select value={scenario} onChange={e=>setScenario(e.target.value as ForecastScenario)}>
+    <option value="base">Base: estimados y documentados</option>
+    <option value="conservative">Conservador: sin ingresos estimados</option>
+    <option value="favorable">Favorable: sin egresos estimados</option>
+   </select></label>
+   <div className="fs-home360-projections"><div><span>Saldo condicional a {horizon} días</span><strong>{forecast.ready?formatCop(forecast.endingBalance):'Sin base verificable'}</strong></div>
+    <div><span>Primer día de insuficiencia</span><strong>{forecast.ready?(forecast.firstShortfall||'No detectado'):'No evaluable'}</strong></div></div>
+   {forecast.ready?<div className="fs-home360-forecast">
+    <ResponsiveContainer width="100%" height={195}><BarChart data={forecast.points.filter((_,i)=>i%Math.max(1,Math.floor(horizon/12))===0||i===horizon-1)}>
+     <XAxis dataKey="date" tickFormatter={v=>String(v).slice(5)}/><YAxis tickFormatter={v=>String(Math.round(Number(v)/1_000_000))+' M'}/>
+     <Tooltip formatter={v=>formatCop(Number(v))}/><Bar dataKey="closing" name="Caja simulada (condicional)" fill="#16ad83"/>
+    </BarChart></ResponsiveContainer></div>:
+    <p role="status">{forecast.reason}</p>}
+   <button type="button" className="fs-small" onClick={()=>onNavigate('Calendario')}>Completar calendario <ArrowRight size={14}/></button>
    <p><Wallet size={14} aria-hidden="true"/> Se necesita caja conciliada, nómina neta y pagos con fecha e importe confirmables. Cambiar horizonte no inventa una curva.</p>
   </section></div>
   {(summary.liquidity===null||summary.debtTotal===null||summary.upcomingObligations===null)&&
