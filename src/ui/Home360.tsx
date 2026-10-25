@@ -13,11 +13,11 @@ export default function Home360({data, period, today, onNavigate}: Props) {
   const summary = useMemo(() => buildHome360(data, period, today), [data, period, today]);
   const series = useMemo(() => Array.from({length: 6}, (_, index) => {
     const month = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)) - 6 + index, 1)).toISOString().slice(0, 7);
-    const entries = data.movements.filter(movement => movement.occurred_at.startsWith(month));
+    const entries = data.movements.filter(movement => movement.occurred_at.startsWith(month) && movement.occurred_at <= today);
     if (!entries.length || entries.some(movement => converted(movement) === null))
       return {period: month, income: null, expenses: null};
-    return {period: month, ...monthly(data, month)};
-  }), [data, period]);
+    return {period: month, ...monthly({...data, movements: entries}, month)};
+  }), [data, period, today]);
 
   const cards = [
     {label: 'Liquidez documentada', value: summary.liquidity, detail: summary.notes.liquidity, target: 'Configuración' as Destination},
