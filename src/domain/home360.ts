@@ -26,6 +26,17 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
     converted(movement) === null
   );
 
+  const ledgerCashRows = posted.filter(movement => cashAccounts.some(account => account.id === movement.account_id &&
+    (!account.balance_as_of || movement.occurred_at > account.balance_as_of)));
+  const unsafeAdjustments = ledgerCashRows.some(row => !['income','expense','card_payment','debt_payment','investment_contribution','transfer'].includes(row.movement_type));
+  const transferIds = new Set(ledgerCashRows.filter(row => row.movement_type === 'transfer').map(row => row.transfer_group_id));
+  const invalidTransfers = [...transferIds].some(id => {
+    if(!id)return true;
+    const legs=posted.filter(row => row.movement_type === 'transfer' && row.transfer_group_id===id);
+    if(legs.length!==2 || !legs.some(row=>row.transfer_direction==='in') || !legs.some(row=>row.transfer_direction==='out'))return true;
+    const amounts=legs.map(converted);
+    return amounts.some(amount=>amount===null) || Math.abs(amounts[0]!-amounts[1]!)>0.01;
+  });
   const inPeriod = posted.filter(movement => movement.occurred_at.startsWith(period));
   const lastDay = new Date(Date.UTC(Number(period.slice(0,4)), Number(period.slice(5,7)), 0)).toISOString().slice(0,10);
   const flow = cashBreakdown({...data, movements: posted}, period+'-01', lastDay);
@@ -58,15 +69,16 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
   ).map(debt => ({id: debt.id, name: debt.name, day: debt.due_day!}));
 
   const unvaluedCount = data.movements.filter(movement => converted(movement) === null).length;
-  const netWorth = !balances.partial && debtsReady &&
-    data.investments.every(i => i.value_kind==='documented' && i.valued_at.slice(0,10)<=today) ? balances.net : null;
+  // Incomplete asset inventory is not evidence of zero unregistered assets.
+  // Without an independently verified inventory-completeness flag, net worth cannot be certified.
+  const netWorth: number|null = null;
   const undocumentedAccounts = cashAccounts.filter(account =>
     account.balance_kind !== 'documented' || !validDate(account.balance_as_of)
   ).length;
   const debtsWithoutDay = data.debts.length - dueDayReferences.length;
 
   return {
-    liquidity: cashReady && !unknownAccountMovements ? cashAccounts.reduce((sum, account) => sum + account.value!, 0) : null,
+    liquidity: cashReady && !unknownAccountMovements && !unsafeAdjustments && !invalidTransfers ? cashAccounts.reduce((sum, account) => sum + account.value!, 0) : null,
     income: flow.operationalInflows,
     expenses: flow.consumption,
     netFlow: flow.bankNet,
@@ -91,7 +103,7 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
       budgetCategories: relevantBudgets.length
     },
     notes: {
-      liquidity: 'Saldo documental de cuentas COP al corte informado y movimientos posteriores registrados. No es confirmación bancaria en tiempo real.',
+      liquidity: 'Saldo documental condicionado a cortes, operaciones clasificadas y transferencias emparejadas. No es confirmación bancaria en tiempo real.',
       flow: 'Libro mayor operativo del mes calendario: consumo distinto de salidas bancarias. Entradas no son necesariamente nómina.',
       budget: 'Solo presupuestos COP con categorías no duplicadas y consumos valorados.',
       debt: 'Solo deudas con saldo COP documentado. No equivale a cuotas ni fechas de pago.'
