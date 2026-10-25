@@ -34,13 +34,15 @@ describe('private home 360 snapshot', () => {
   data.categories = [{id:'c1', name:'Alimentación', flow_type:'expense'}];
   data.movements = [movement];
   data.budgets = [budget];
-  data.debts = [{id:'d1',name:'Tarjeta',balance:200000,currency:'COP',balance_kind:'documented',due_day:15}];
+  data.debts = [{id:'d1',name:'Tarjeta',balance:200000,currency:'COP',balance_kind:'documented',due_day:15,as_of_date:'2026-10-24'}];
   const result = buildHome360(data,'2026-10','2026-10-25');
   expect(result.liquidity).toBe(465000);
   expect(result.expenses).toBe(35000);
   expect(result.income).toBe(0);
   expect(result.budgetRemaining).toBe(65000);
   expect(result.debtTotal).toBe(200000);
+  expect(result.bankOutflows).toBe(35000);
+  expect(result.netFlow).toBe(-35000);
   expect(result.dueDayReferences).toEqual([{id:'d1',name:'Tarjeta',day:15}]);
   expect(result.projectionAvailable).toBe(false);
  });
@@ -82,6 +84,12 @@ describe('private home 360 snapshot', () => {
   const data=empty();
   data.accounts=[{...account,id:'broker',account_type:'brokerage',opening_balance:900000}];
   expect(buildHome360(data,'2026-10','2026-10-25').liquidity).toBeNull();
+ });
+
+ it('rejects future-dated debt snapshots as total debt', () => {
+  const data=empty();
+  data.debts=[{id:'d',name:'Tarjeta',balance:100000,currency:'COP',balance_kind:'documented',as_of_date:'2026-11-15'}];
+  expect(buildHome360(data,'2026-10','2026-10-25').debtTotal).toBeNull();
  });
 
 });
