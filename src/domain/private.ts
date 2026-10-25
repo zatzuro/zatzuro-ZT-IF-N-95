@@ -5,7 +5,7 @@ export interface CategoryRow { id: string; name: string; flow_type: 'income'|'ex
 export interface MovementRow {
  id: string; account_id: string; category_id: string | null; movement_type: string;
  occurred_at: string; description: string; amount: number | string; currency: string;
- amount_cop: number | string | null; external_source?: string | null; external_key?: string | null; transfer_direction?: 'in'|'out'|null;
+ amount_cop: number | string | null; external_source?: string | null; external_key?: string | null; transfer_group_id?: string | null; transfer_direction?: 'in'|'out'|null;
 }
 export interface BudgetRow { id: string; category_id: string; period_start: string; period_end: string; amount: number | string; currency: string }
 export interface DebtRow { id: string; name: string; lender?: string; balance: number | string; currency: string; balance_kind: string; annual_rate?: number | string | null; due_day?: number | null }
