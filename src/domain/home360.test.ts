@@ -69,4 +69,19 @@ describe('private home 360 snapshot', () => {
   expect(result.debtTotal).toBeNull();
   expect(result.quality.debtsWithoutDay).toBe(1);
  });
+ it('does not treat future postings as current cash or settled expenditure', () => {
+  const data=empty();
+  data.accounts=[account];
+  data.movements=[{...movement,id:'future',occurred_at:'2026-10-31',amount:200000}];
+  const result=buildHome360(data,'2026-10','2026-10-25');
+  expect(result.liquidity).toBe(500000);
+  expect(result.expenses).toBeNull();
+  expect(result.quality.periodMovements).toBe(0);
+ });
+ it('does not present brokerage funds as spendable liquidity', () => {
+  const data=empty();
+  data.accounts=[{...account,id:'broker',account_type:'brokerage',opening_balance:900000}];
+  expect(buildHome360(data,'2026-10','2026-10-25').liquidity).toBeNull();
+ });
+
 });
