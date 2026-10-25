@@ -30,7 +30,14 @@ describe('daily cash projection',()=>{
   const empty=projectDailyCash({today:'2026-10-25',days:30,openingCash:null,calendarVerified:true,events:[],scenario:'base'});
   expect(empty.ready).toBe(false);
  });
- it('rejects unknown amounts and duplicated events',()=>{
+ it('blocks credit advances that have no documented matching liability',()=>{
+  expect(run([event({direction:'in',kind:'credit_advance'})]).ready).toBe(false);
+ });
+ it('counts a past-due unpaid obligation on the first projected day',()=>{
+  const p=run([event({dueDate:'2026-10-20',amountCop:1200})]);
+  expect(p.ready&&p.firstShortfall).toBe('2026-10-26');
+ });
+  it('rejects unknown amounts and duplicated events',()=>{
   expect(run([event({amountCop:null})]).ready).toBe(false);
   expect(run([event(),event({dueDate:'2026-10-29'})]).ready).toBe(false);
  });
