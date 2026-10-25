@@ -1,4 +1,4 @@
-export type Kind = 'income' | 'expense' | 'transfer' | 'card_payment' | 'investment_contribution';
+export type Kind = 'income' | 'expense' | 'transfer' | 'card_payment' | 'investment_contribution' | 'debt_payment' | 'financing_inflow' | 'unclassified_inflow';
 export interface Movement {
   id: string; date: string; description: string; category: string; amount: number;
   currency: 'COP' | 'USD'; amountCop?: number; kind: Kind; account: string;
