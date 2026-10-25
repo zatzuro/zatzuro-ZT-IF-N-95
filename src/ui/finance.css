@@ -58,7 +58,7 @@
 .fs-home360-title h2{font-size:22px;letter-spacing:-.5px;margin:6px 0}
 .fs-home360-title p{font-size:12px;color:#71849a;line-height:1.55;margin:0;max-width:680px}
 .fs-home360-date{font-size:11px;color:#617991;white-space:nowrap}
-.fs-home360-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.fs-home360-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .fs-home360-grid .fs-metric{padding:17px;align-content:start;gap:10px}
 .fs-home360-grid .fs-metric strong{font-size:clamp(16px,1.65vw,23px);overflow-wrap:anywhere}
 .fs-home360-grid .fs-metric span{line-height:1.45}
@@ -77,3 +77,8 @@
 @media(max-width:1300px){.fs-home360-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.fs-home360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fs-home360-columns{grid-template-columns:1fr}}
 @media(max-width:600px){.fs-home360-title{align-items:flex-start;flex-direction:column}.fs-home360-grid{grid-template-columns:1fr}.fs-home360-grid .fs-metric strong{font-size:22px}.fs-home360-date{white-space:normal}}
+
+.fs-home360-horizons{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 8px}
+.fs-home360-horizons button{border:1px solid #d8e4ed;border-radius:10px;background:#f6f9fb;color:#536b81;padding:8px 14px;font-weight:750;font-size:12px}
+.fs-home360-horizons button.active,.fs-home360-horizons button[aria-pressed="true"]{background:#e8f9f3;border-color:#69c3a7;color:#126a54}
+.fs-home360-horizons button:focus-visible,.fs-home360-link:focus-visible{outline:3px solid #6ea7f0;outline-offset:2px}
