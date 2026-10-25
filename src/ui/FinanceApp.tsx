@@ -7,6 +7,7 @@ import {previewCsv,SHEET_MAPPING,type ImportKind,type Preview} from '../domain/m
 import {formatCop} from '../domain/ledger';
 import SourceMigration from './SourceMigration';
 import SourceDataPanel from './SourceDataPanel';
+import Home360 from './Home360';
 import {manualDebtPayload} from '../domain/manualDebt';
 
 const empty=():FinanceData=>({accounts:[],categories:[],movements:[],budgets:[],debts:[],investments:[],goals:[],financial_findings:[]});
@@ -169,8 +170,8 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
   {message&&<div role="status" className="fs-success">{message}<button onClick={()=>setMessage('')}>Cerrar</button></div>}
   {loading?<div className="fs-panel">Cargando datos privados y verificando integridad…</div>:
   <>
-  {active==='Inicio'&&<SourceDataPanel client={client} mode="home" referenceDate={dateToday()}/>}
-  {['Inicio','Patrimonio'].includes(active)&&<><div className="fs-metrics">{totals.map(metric=><article key={metric.label} className="fs-metric"><small>{metric.label}</small><strong>{metric.value===null?'No conciliado':cop(metric.value)}</strong><span>{metric.note}</span></article>)}</div>
+  {active==='Inicio'&&<><Home360 data={data} period={period} today={dateToday()} onNavigate={setActive}/><SourceDataPanel client={client} mode="home" referenceDate={dateToday()}/></>}
+  {active==='Patrimonio'&&<><div className="fs-metrics">{totals.map(metric=><article key={metric.label} className="fs-metric"><small>{metric.label}</small><strong>{metric.value===null?'No conciliado':cop(metric.value)}</strong><span>{metric.note}</span></article>)}</div>
    <div className="fs-two"><section className="fs-panel"><div className="fs-section"><h2>Flujo de caja · 6 meses</h2><span>Ingresos vs consumo · millones COP</span></div>{data.movements.length===0?<p>Gráfica pendiente: todavía no hay movimientos conciliados en el libro mayor. Las observaciones de origen se muestran por separado.</p>:<ResponsiveContainer width="100%" height={270}><BarChart data={six}><CartesianGrid stroke="#eaf0f5" vertical={false}/><XAxis dataKey="period"/><YAxis tickFormatter={v=>String(Math.round(Number(v)/1000000))+'M'}/><Tooltip formatter={v=>cop(Number(v))}/><Bar dataKey="income" name="Ingresos" fill="#16ad83" radius={[5,5,0,0]}/><Bar dataKey="expenses" name="Consumo" fill="#4a83f5" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer>}</section>
    <section className="fs-panel"><h2>Composición patrimonial</h2><div className="fs-breakdown"><div><span>Efectivo / cuentas COP</span><b>{data.accounts.length===0?'Sin cuentas conciliadas':cop(balance.cash)}</b></div><div><span>Inversiones valoradas COP</span><b>{data.investments.length===0?'Sin valoración conciliada':cop(balance.investments)}</b></div><div><span>Pasivos documentados/estimados COP</span><b>{cop(balance.debts)}</b></div></div><p>Los movimientos financieros (traspasos, pagos de tarjeta, aportes) no se contabilizan como consumo. Sin todos los activos y sus fechas de corte, el patrimonio neto no está conciliado.</p><button className="fs-small" onClick={()=>setActive('Configuración')}>Revisar cuentas →</button></section></div></>}
   {active==='Ingresos'&&<><SourceDataPanel client={client} mode="income" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — ingresos y gastos')}<p className="fs-guidance">Para registrar un ingreso, selecciona “Crear” y asigna una categoría de ingreso.</p></>}
