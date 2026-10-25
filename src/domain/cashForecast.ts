@@ -33,16 +33,17 @@ export function projectDailyCash(options:{
  end.setUTCDate(end.getUTCDate()+days);
  for(const event of applicable){
   if(event.channel==='payroll_deduction')continue;
-  if(event.dueDate<=today||event.dueDate>end.toISOString().slice(0,10))continue;
+  if(event.dueDate>end.toISOString().slice(0,10))continue;
+  const effectiveDate=event.dueDate<=today?new Date(Date.parse(today+'T00:00:00Z')+86400000).toISOString().slice(0,10):event.dueDate;
   const signed=event.direction;
   if(event.kind==='transfer')continue; // Own-account transfers never create income or expense.
   // A verified credit advance can boost bank cash but is not salary/wealth.
   if(scenario==='conservative'&&event.certainty==='estimated'&&signed==='in')continue;
   if(scenario==='favorable'&&event.certainty==='estimated'&&signed==='out')continue;
-  const entry=daily.get(event.dueDate)||{incoming:0,outgoing:0};
+  const entry=daily.get(effectiveDate)||{incoming:0,outgoing:0};
   if(signed==='in')entry.incoming+=event.amountCop!;
   else entry.outgoing+=event.amountCop!;
-  daily.set(event.dueDate,entry);
+  daily.set(effectiveDate,entry);
  }
  const points:ForecastPoint[]=[];let cash=openingCash;let firstShortfall:string|null=null;
  for(let day=1;day<=days;day++){
