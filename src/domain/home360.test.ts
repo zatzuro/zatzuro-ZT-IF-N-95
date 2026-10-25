@@ -102,6 +102,18 @@ describe('private home 360 snapshot', () => {
   data.movements=[{...movement,movement_type:'transfer',category_id:null,transfer_group_id:'group1',transfer_direction:'out'}];
   expect(buildHome360(data,'2026-10','2026-10-25').liquidity).toBeNull();
  });
+ it('keeps a financing receipt in cash but not earned-income, while unresolved credits block liquidity',()=>{
+  const data=empty();data.accounts=[account];
+  data.movements=[{...movement,id:'advance',category_id:null,movement_type:'financing_inflow',amount:2000000}];
+  const advance=buildHome360(data,'2026-10','2026-10-25');
+  expect(advance.liquidity).toBe(2500000);
+  expect(advance.income).toBe(0);
+  expect(advance.netFlow).toBe(2000000);
+  data.movements.push({...movement,id:'other-credit',category_id:null,movement_type:'unclassified_inflow',amount:400000});
+  const withUnknown=buildHome360(data,'2026-10','2026-10-25');
+  expect(withUnknown.liquidity).toBeNull();
+  expect(withUnknown.netFlow).toBeNull();
+ });
  it('never calls net worth reconciled without a verified complete asset inventory', () => {
   const data=empty();data.accounts=[account];
   expect(buildHome360(data,'2026-10','2026-10-25').netWorth).toBeNull();
