@@ -9,6 +9,7 @@ import SourceMigration from './SourceMigration';
 import SourceDataPanel from './SourceDataPanel';
 import Home360 from './Home360';
 import FinancialCalendar,{type CalendarEventRow} from './FinancialCalendar';
+import PayrollProjection,{type CommissionFactorRow} from './PayrollProjection';
 import {manualDebtPayload} from '../domain/manualDebt';
 
 const empty=():FinanceData=>({accounts:[],categories:[],movements:[],budgets:[],debts:[],investments:[],goals:[],financial_findings:[]});
@@ -25,7 +26,7 @@ const cop=(n:number)=>formatCop(n);
 const nowPeriod=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'}).slice(0,7);
 const dateToday=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'});
 const monthEnd=(p:string)=>new Date(Date.UTC(Number(p.slice(0,4)),Number(p.slice(5,7)),0)).toISOString().slice(0,10);
-async function readAll(client:SupabaseClient,table:Table|'financial_calendar_events'):Promise<unknown[]> {
+async function readAll(client:SupabaseClient,table:Table|'financial_calendar_events'|'payroll_commission_factors'):Promise<unknown[]> {
  const results:unknown[]=[];
  for(let offset=0;offset<50000;offset+=500){
   const {data,error}=await client.from(table).select('*').order('created_at',{ascending:false}).range(offset,offset+499);
@@ -40,6 +41,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
  const [active,setActive]=useState<Module>('Inicio');
  const [data,setData]=useState<FinanceData>(empty());
  const [calendar,setCalendar]=useState<CalendarEventRow[]>([]);
+ const [factors,setFactors]=useState<CommissionFactorRow[]>([]);
  const [period,setPeriod]=useState(nowPeriod);
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
@@ -56,11 +58,11 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
  const refresh=useCallback(async()=>{
   setLoading(true);setError('');
   try{
-   const [arrays,scheduled]=await Promise.all([Promise.all(tables.map(t=>readAll(client,t))),readAll(client,'financial_calendar_events')]);
+   const [arrays,scheduled,commissionFactors]=await Promise.all([Promise.all(tables.map(t=>readAll(client,t))),readAll(client,'financial_calendar_events'),readAll(client,'payroll_commission_factors')]);
    const fresh=empty();
    for(let i=0;i<tables.length;i++)(fresh as unknown as Record<string,unknown>)[tables[i]]=arrays[i];
-   setData(fresh);setCalendar(scheduled as CalendarEventRow[]);
-  }catch(e){setError('Error de carga; no se muestran cifras antiguas: '+errorText(e));setData(empty());setCalendar([]);}
+   setData(fresh);setCalendar(scheduled as CalendarEventRow[]);setFactors(commissionFactors as CommissionFactorRow[]);
+  }catch(e){setError('Error de carga; no se muestran cifras antiguas: '+errorText(e));setData(empty());setCalendar([]);setFactors([]);}
   finally{setLoading(false);}
  },[client]);
  useEffect(()=>{void refresh();},[refresh]);
@@ -177,7 +179,7 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
   {active==='Patrimonio'&&<><div className="fs-metrics">{totals.map(metric=><article key={metric.label} className="fs-metric"><small>{metric.label}</small><strong>{metric.value===null?'No conciliado':cop(metric.value)}</strong><span>{metric.note}</span></article>)}</div>
    <div className="fs-two"><section className="fs-panel"><div className="fs-section"><h2>Flujo de caja · 6 meses</h2><span>Ingresos vs consumo · millones COP</span></div>{data.movements.length===0?<p>Gráfica pendiente: todavía no hay movimientos conciliados en el libro mayor. Las observaciones de origen se muestran por separado.</p>:<ResponsiveContainer width="100%" height={270}><BarChart data={six}><CartesianGrid stroke="#eaf0f5" vertical={false}/><XAxis dataKey="period"/><YAxis tickFormatter={v=>String(Math.round(Number(v)/1000000))+'M'}/><Tooltip formatter={v=>cop(Number(v))}/><Bar dataKey="income" name="Ingresos" fill="#16ad83" radius={[5,5,0,0]}/><Bar dataKey="expenses" name="Consumo" fill="#4a83f5" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer>}</section>
    <section className="fs-panel"><h2>Composición patrimonial</h2><div className="fs-breakdown"><div><span>Efectivo / cuentas COP</span><b>{data.accounts.length===0?'Sin cuentas conciliadas':cop(balance.cash)}</b></div><div><span>Inversiones valoradas COP</span><b>{data.investments.length===0?'Sin valoración conciliada':cop(balance.investments)}</b></div><div><span>Pasivos documentados/estimados COP</span><b>{cop(balance.debts)}</b></div></div><p>Los movimientos financieros (traspasos, pagos de tarjeta, aportes) no se contabilizan como consumo. Sin todos los activos y sus fechas de corte, el patrimonio neto no está conciliado.</p><button className="fs-small" onClick={()=>setActive('Configuración')}>Revisar cuentas →</button></section></div></>}
-  {active==='Ingresos'&&<><SourceDataPanel client={client} mode="income" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — ingresos y gastos')}<p className="fs-guidance">Para registrar un ingreso, selecciona “Crear” y asigna una categoría de ingreso.</p></>}
+  {active==='Ingresos'&&<><PayrollProjection factors={factors}/><SourceDataPanel client={client} mode="income" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — ingresos y gastos')}<p className="fs-guidance">Para registrar un ingreso, selecciona “Crear” y asigna una categoría de ingreso.</p></>}
   {active==='Gastos'&&<><SourceDataPanel client={client} mode="expenses" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — gastos conciliados')}</>}
   {active==='Presupuesto'&&<><SourceDataPanel client={client} mode="budget" referenceDate={dateToday()}/><section className="fs-panel"><div className="fs-section"><h2>Presupuesto del mes</h2><button className="fs-small" onClick={()=>open('budgets')}><Plus size={15}/> Crear partida</button></div><div className="fs-budget">{budgets.map(b=><div key={b.id}><div><strong>{b.name}</strong><span>{cop(b.spent)} / {cop(b.budget)}</span></div><progress value={b.spent} max={Math.max(b.budget,b.spent,1)}/><small>{b.remaining<0?'Sobrepasado '+cop(-b.remaining):'Disponible '+cop(b.remaining)}</small></div>)}</div>{!budgets.length&&<p>Sin partidas para este mes. Crea categorías de gasto en Configuración.</p>}</section></>}
   {active==='Créditos'&&<><SourceDataPanel client={client} mode="debts" referenceDate={dateToday()}/>{listing('debts','Créditos · saldos documentados o estimados')}</>}
