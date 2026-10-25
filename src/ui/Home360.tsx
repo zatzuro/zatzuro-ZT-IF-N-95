@@ -28,6 +28,12 @@ export default function Home360({data,events,period,today,onNavigate}:Props){
   events:planned,scenario
  }),[today,horizon,summary.liquidity,coverageConfirmed,planned,scenario]);
  const unpaidEvents=events.filter(e=>e.status==='pending'&&e.channel==='bank'&&e.direction==='out');
+ const endDate=useMemo(()=>{const d=new Date(today+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+horizon);return d.toISOString().slice(0,10);},[today,horizon]);
+ const toPay=events.filter(e=>e.status==='pending'&&e.channel==='bank'&&e.direction==='out'&&e.event_kind!=='transfer'&&e.due_date<=endDate);
+ const toReceive=events.filter(e=>e.status==='pending'&&e.channel==='bank'&&e.direction==='in'&&e.event_kind!=='transfer'&&e.due_date<=endDate);
+ const scheduledOut=forecast.ready?toPay.reduce((n,e)=>n+Number(e.amount_cop),0):null;
+ const scheduledIn=forecast.ready?toReceive.reduce((n,e)=>n+Number(e.amount_cop),0):null;
+ const reserveCash=forecast.ready&&scheduledOut!==null&&summary.liquidity!==null?summary.liquidity-scheduledOut:null;
  const series=useMemo(()=>Array.from({length:6},(_,index)=>{
   const month=new Date(Date.UTC(Number(period.slice(0,4)),Number(period.slice(5,7))-6+index,1)).toISOString().slice(0,7);
   const lastDay=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10);
@@ -36,9 +42,9 @@ export default function Home360({data,events,period,today,onNavigate}:Props){
  }),[data,period,today]);
  const cards=[
   {label:'Dinero disponible hoy',value:summary.liquidity,detail:summary.notes.liquidity,target:'Configuración' as Destination},
-  {label:'Disponible tras obligaciones',value:summary.availableAfterCommitments,detail:'Pendiente de compromisos fechados, pagos realizados y saldo de caja conciliado.',target:'Créditos' as Destination},
-  {label:'Próximos ingresos',value:summary.upcomingIncome,detail:'Pendiente de calendario de nómina, descuentos y comisiones verificadas.',target:'Ingresos' as Destination},
-  {label:'Obligaciones próximas',value:summary.upcomingObligations,detail:'Faltan vencimientos con importe y estado real para proyectar pagos.',target:'Créditos' as Destination},
+  {label:'Disponible tras obligaciones',value:reserveCash,detail:'Escenario condicional: caja menos salidas programadas de '+horizon+' días, sin ingresos futuros.',target:'Calendario' as Destination},
+  {label:'Próximos ingresos',value:scheduledIn,detail:'Entradas programadas para '+horizon+' días: documentadas y estimadas, no cobradas.',target:'Calendario' as Destination},
+  {label:'Obligaciones próximas',value:scheduledOut,detail:'Salidas bancarias programadas para '+horizon+' días, no pagos confirmados.',target:'Calendario' as Destination},
   {label:'Deuda total',value:summary.debtTotal,detail:summary.notes.debt,target:'Créditos' as Destination},
   {label:'Patrimonio neto',value:summary.netWorth,detail:'Activos menos pasivos; sin activos ni cortes completos no es conciliado.',target:'Patrimonio' as Destination}
  ];
