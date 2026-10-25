@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(6);
+select plan(8);
 insert into auth.users(id,aud,role,email,encrypted_password,raw_app_meta_data,raw_user_meta_data)
 values
 ('00000000-0000-0000-0000-000000000071','authenticated','authenticated','calendar-owner@example.invalid','','{}','{}'),
@@ -23,6 +23,16 @@ select throws_ok(
  $sql$insert into public.financial_calendar_events(owner_id,description,event_kind,due_date,amount_cop,direction,status)
  values('00000000-0000-0000-0000-000000000071','Pago no acreditado','card_payment','2026-11-15',100,'out','paid')$sql$,
  '23514',null,'paid requires an existing linked movement');
+select throws_ok(
+ $sql$insert into public.financial_calendar_events(owner_id,description,event_kind,due_date,amount_cop,direction)
+ values('00000000-0000-0000-0000-000000000071','Nómina invertida','salary','2026-11-15',100,'out')$sql$,
+ '23514',null,'payroll cannot invert cash direction');
+insert into public.financial_calendar_events(owner_id,description,event_kind,due_date,amount_cop,direction,external_source,external_key)
+ values('00000000-0000-0000-0000-000000000071','Pago programado','card_payment','2026-11-16',100,'out','fixture','stable-id');
+select throws_ok(
+ $sql$insert into public.financial_calendar_events(owner_id,description,event_kind,due_date,amount_cop,direction,external_source,external_key)
+ values('00000000-0000-0000-0000-000000000071','Pago programado','card_payment','2026-11-16',100,'out','fixture','stable-id')$sql$,
+ '23505',null,'stable external key rejects duplicate request');
 select is((select count(*)::integer from public.movements),0,'schedule never invents a settled movement');
 reset role;
 select * from finish();
