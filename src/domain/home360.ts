@@ -10,7 +10,7 @@ const validAmount = (value: unknown) => value !== null && value !== '' && Number
 export function buildHome360(data: FinanceData, period: string, today: string) {
   const posted = data.movements.filter(movement => movement.occurred_at <= today);
   const balances = calculateBalances({...data, movements: posted});
-  const cashAccounts = balances.balances.filter(account => account.account_type !== 'credit_card');
+  const cashAccounts = balances.balances.filter(account => ['cash', 'checking', 'savings'].includes(account.account_type));
   const cashReady = cashAccounts.length > 0 && cashAccounts.every(account =>
     account.currency === 'COP' &&
     account.balance_kind === 'documented' &&
@@ -62,7 +62,7 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
   const debtsWithoutDay = data.debts.length - dueDayReferences.length;
 
   return {
-    liquidity: cashReady && !unknownAccountMovements ? balances.cash : null,
+    liquidity: cashReady && !unknownAccountMovements ? cashAccounts.reduce((sum, account) => sum + account.value!, 0) : null,
     income: flow?.income ?? null,
     expenses: flow?.expenses ?? null,
     netFlow: flow?.savings ?? null,
