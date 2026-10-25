@@ -1,4 +1,4 @@
-import {useState,type FormEvent} from 'react';
+import {useRef,useState,type FormEvent} from 'react';
 import type {SupabaseClient,User} from '@supabase/supabase-js';
 import {formatCop} from '../domain/ledger';
 
@@ -13,7 +13,11 @@ const initial={description:'',event_kind:'expense',due_date:'',amount_cop:'',dir
 export default function FinancialCalendar({client,user,events,refresh}:{client:SupabaseClient;user:User;events:CalendarEventRow[];refresh:()=>Promise<void>}){
  const [form,setForm]=useState(initial);const [error,setError]=useState('');
  const [message,setMessage]=useState('');const [saving,setSaving]=useState(false);
- const choose=(key:keyof typeof initial,value:string)=>setForm(current=>({...current,[key]:value}));
+ const submissionKey=useRef<string|null>(null);
+ const choose=(key:keyof typeof initial,value:string)=>{
+  submissionKey.current=null;
+  setForm(current=>key==='event_kind'?({...current,[key]:value,direction:['salary','commission','bonus','credit_advance'].includes(value)?'in':['expense','card_payment','loan_payment'].includes(value)?'out':current.direction}):({...current,[key]:value}));
+ };
  const submit=async(e:FormEvent)=>{
   e.preventDefault();setError('');setMessage('');
   const amount=Number(form.amount_cop);
@@ -26,13 +30,21 @@ export default function FinancialCalendar({client,user,events,refresh}:{client:S
   }
   setSaving(true);
   try{
+   submissionKey.current ||= crypto.randomUUID();
    const {error:writeError}=await client.from('financial_calendar_events').insert({
     owner_id:user.id,description:form.description.trim(),event_kind:form.event_kind,
     due_date:form.due_date,amount_cop:amount,direction:form.direction,
     certainty:form.certainty,status:'pending',channel:form.channel,
-    source_reference:form.source_reference.trim()||null
+    source_reference:form.source_reference.trim()||null,
+    external_source:'manual_calendar_ui',external_key:submissionKey.current
    });
-   if(writeError)throw writeError;
+   if(writeError){
+    if(writeError.code==='23505'){
+      setMessage('Este evento ya se había registrado. Se verificará la lista sin duplicar.');await refresh();return;
+    }
+    throw writeError;
+   }
+   submissionKey.current=null;
    setForm(initial);setMessage('Evento planificado guardado en Supabase. No se creó un movimiento bancario.');await refresh();
   }catch(e){setError('No se guardó el evento: '+(e instanceof Error?e.message:String(e)));}
   finally{setSaving(false);}
@@ -58,7 +70,7 @@ export default function FinancialCalendar({client,user,events,refresh}:{client:S
    <label>Tipo<select value={form.event_kind} onChange={e=>choose('event_kind',e.target.value)}>
     <option value="expense">Gasto comprometido</option><option value="card_payment">Pago de tarjeta</option>
     <option value="loan_payment">Cuota de deuda</option><option value="salary">Nómina neta</option>
-    <option value="commission">Comisión neta por recibir</option><option value="bonus">Prima u otro bono</option>
+    <option value="commission">Comisión adicional no incluida en nómina</option><option value="bonus">Prima u otro bono</option>
     <option value="other">Otro ingreso/egreso</option>
    </select></label>
    <label>Fecha de vencimiento<input required type="date" value={form.due_date} onChange={e=>choose('due_date',e.target.value)} /></label>
