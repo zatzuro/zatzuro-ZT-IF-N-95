@@ -42,6 +42,21 @@ describe('cash versus consumption',()=>{
   expect(x.consumption).toBe(0);expect(x.bankOutflows).toBe(90000);
   expect(x.debtPayments).toBe(70000);expect(x.investmentsFunded).toBe(20000);
  });
+ it('books a verified card cash advance as financing, never earned income',()=>{
+  const d=mk();d.movements=[row('advance','a','financing_inflow',2000000)];
+  const x=cashBreakdown(d,'2026-10-01','2026-10-31');
+  expect(x.operationalInflows).toBe(0);
+  expect(x.financingReceived).toBe(2000000);
+  expect(x.bankNet).toBe(2000000);
+  expect(x.consumption).toBe(0);
+ });
+ it('does not certify bank net while incoming origin is unclassified',()=>{
+  const d=mk();d.movements=[row('external-in','a','unclassified_inflow',240000)];
+  const x=cashBreakdown(d,'2026-10-01','2026-10-31');
+  expect(x.bankNet).toBeNull();
+  expect(x.operationalInflows).toBeNull();
+  expect(x.pendingChecks).toContain('Abono recibido sin origen o naturaleza conciliada');
+ });
  it('does not create an observed cash value without transactions',()=>{
   expect(cashBreakdown(mk(),'2026-10-01','2026-10-31').bankNet).toBeNull();
  });

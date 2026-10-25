@@ -28,7 +28,7 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
 
   const ledgerCashRows = posted.filter(movement => cashAccounts.some(account => account.id === movement.account_id &&
     (!account.balance_as_of || movement.occurred_at > account.balance_as_of)));
-  const unsafeAdjustments = ledgerCashRows.some(row => !['income','expense','card_payment','debt_payment','investment_contribution','transfer'].includes(row.movement_type));
+  const unsafeAdjustments = ledgerCashRows.some(row => !['income','expense','card_payment','debt_payment','investment_contribution','transfer','financing_inflow'].includes(row.movement_type));
   const transferIds = new Set(ledgerCashRows.filter(row => row.movement_type === 'transfer').map(row => row.transfer_group_id));
   const invalidTransfers = [...transferIds].some(id => {
     if(!id)return true;

@@ -3,6 +3,7 @@ import {converted, type FinanceData, type MovementRow} from './private';
 export type CashBreakdown = {
   consumption: number | null;
   operationalInflows: number | null;
+  financingReceived: number | null;
   bankOutflows: number | null;
   bankNet: number | null;
   cardPayments: number | null;
@@ -21,7 +22,7 @@ export function cashBreakdown(data: FinanceData, start: string, end: string): Ca
   const rows = data.movements.filter(m => m.occurred_at >= start && m.occurred_at <= end);
   const bankIds = new Set(data.accounts.filter(a => ['cash','checking','savings'].includes(a.account_type)).map(a=>a.id));
   const pendingChecks: string[] = [];
-  const totals = {consumption:0, operationalInflows:0, bankOutflows:0, cardPayments:0, debtPayments:0, investmentsFunded:0, transferVolume:0};
+  const totals = {consumption:0, operationalInflows:0, financingReceived:0, bankOutflows:0, cardPayments:0, debtPayments:0, investmentsFunded:0, transferVolume:0};
   let complete = true;
   const transferGroups = new Map<string, MovementRow[]>();
   for(const row of rows){
@@ -35,6 +36,8 @@ export function cashBreakdown(data: FinanceData, start: string, end: string): Ca
     if(row.movement_type==='expense') totals.consumption += amount;
     if(!bankIds.has(row.account_id))continue;
     if(row.movement_type==='income') totals.operationalInflows += amount;
+    else if(row.movement_type==='financing_inflow') totals.financingReceived += amount;
+    else if(row.movement_type==='unclassified_inflow'){complete=false;pendingChecks.push('Abono recibido sin origen o naturaleza conciliada');}
     else if(['expense','card_payment','debt_payment','investment_contribution'].includes(row.movement_type)){
       totals.bankOutflows += amount;
       if(row.movement_type==='card_payment')totals.cardPayments+=amount;
@@ -65,8 +68,9 @@ export function cashBreakdown(data: FinanceData, start: string, end: string): Ca
   return {
     consumption:hasRows && complete?totals.consumption:null,
     operationalInflows:hasRows && complete?totals.operationalInflows:null,
+    financingReceived:hasRows && complete?totals.financingReceived:null,
     bankOutflows:hasRows && complete?totals.bankOutflows:null,
-    bankNet:hasRows && complete?totals.operationalInflows-totals.bankOutflows:null,
+    bankNet:hasRows && complete?totals.operationalInflows+totals.financingReceived-totals.bankOutflows:null,
     cardPayments:hasRows && complete?totals.cardPayments:null,
     debtPayments:hasRows && complete?totals.debtPayments:null,
     investmentsFunded:hasRows && complete?totals.investmentsFunded:null,
