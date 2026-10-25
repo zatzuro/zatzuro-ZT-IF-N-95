@@ -1,20 +1,23 @@
 import {useCallback,useEffect,useMemo,useState,type FormEvent} from 'react';
 import type {SupabaseClient,User} from '@supabase/supabase-js';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import {BarChart3, BriefcaseBusiness, CreditCard, FileText, Goal, Home, LogOut, Plus, RefreshCcw, ShieldCheck, Sparkles, UploadCloud, Wallet} from 'lucide-react';
+import {BarChart3, BriefcaseBusiness, CalendarDays, CreditCard, FileText, Goal, Home, LogOut, Plus, RefreshCcw, ShieldCheck, Sparkles, UploadCloud, Wallet} from 'lucide-react';
 import {budgetStatus,calculateBalances,findings,money,monthly,type FinanceData} from '../domain/private';
 import {previewCsv,SHEET_MAPPING,type ImportKind,type Preview} from '../domain/migration';
 import {formatCop} from '../domain/ledger';
 import SourceMigration from './SourceMigration';
 import SourceDataPanel from './SourceDataPanel';
+import Home360 from './Home360';
+import FinancialCalendar,{type CalendarEventRow} from './FinancialCalendar';
+import PayrollProjection,{type CommissionFactorRow} from './PayrollProjection';
 import {manualDebtPayload} from '../domain/manualDebt';
 
 const empty=():FinanceData=>({accounts:[],categories:[],movements:[],budgets:[],debts:[],investments:[],goals:[],financial_findings:[]});
 const tables=['accounts','categories','movements','budgets','debts','investments','goals','financial_findings'] as const;
 type Table=typeof tables[number];
-type Module='Inicio'|'Ingresos'|'Gastos'|'Presupuesto'|'Créditos'|'Inversiones'|'Patrimonio'|'Metas'|'Cerebro financiero'|'Datos migrados'|'Configuración';
+type Module='Inicio'|'Calendario'|'Ingresos'|'Gastos'|'Presupuesto'|'Créditos'|'Inversiones'|'Patrimonio'|'Metas'|'Cerebro financiero'|'Datos migrados'|'Configuración';
 const menu: {name:Module;icon:typeof Home}[]=[
- {name:'Inicio',icon:Home},{name:'Ingresos',icon:Wallet},{name:'Gastos',icon:Wallet},
+ {name:'Inicio',icon:Home},{name:'Calendario',icon:CalendarDays},{name:'Ingresos',icon:Wallet},{name:'Gastos',icon:Wallet},
  {name:'Presupuesto',icon:FileText},{name:'Créditos',icon:CreditCard},{name:'Inversiones',icon:BriefcaseBusiness},
  {name:'Patrimonio',icon:BarChart3},{name:'Metas',icon:Goal},{name:'Cerebro financiero',icon:Sparkles},
  {name:'Datos migrados',icon:UploadCloud},{name:'Configuración',icon:ShieldCheck}];
@@ -23,7 +26,7 @@ const cop=(n:number)=>formatCop(n);
 const nowPeriod=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'}).slice(0,7);
 const dateToday=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Bogota'});
 const monthEnd=(p:string)=>new Date(Date.UTC(Number(p.slice(0,4)),Number(p.slice(5,7)),0)).toISOString().slice(0,10);
-async function readAll(client:SupabaseClient,table:Table):Promise<unknown[]> {
+async function readAll(client:SupabaseClient,table:Table|'financial_calendar_events'|'payroll_commission_factors'):Promise<unknown[]> {
  const results:unknown[]=[];
  for(let offset=0;offset<50000;offset+=500){
   const {data,error}=await client.from(table).select('*').order('created_at',{ascending:false}).range(offset,offset+499);
@@ -37,6 +40,8 @@ function errorText(e:unknown){return e instanceof Error?e.message:String(e)}
 export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;user:User;onExit:()=>Promise<void>}){
  const [active,setActive]=useState<Module>('Inicio');
  const [data,setData]=useState<FinanceData>(empty());
+ const [calendar,setCalendar]=useState<CalendarEventRow[]>([]);
+ const [factors,setFactors]=useState<CommissionFactorRow[]>([]);
  const [period,setPeriod]=useState(nowPeriod);
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
@@ -53,11 +58,11 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
  const refresh=useCallback(async()=>{
   setLoading(true);setError('');
   try{
-   const arrays=await Promise.all(tables.map(t=>readAll(client,t)));
+   const [arrays,scheduled,commissionFactors]=await Promise.all([Promise.all(tables.map(t=>readAll(client,t))),readAll(client,'financial_calendar_events'),readAll(client,'payroll_commission_factors')]);
    const fresh=empty();
    for(let i=0;i<tables.length;i++)(fresh as unknown as Record<string,unknown>)[tables[i]]=arrays[i];
-   setData(fresh);
-  }catch(e){setError('Error de carga; no se muestran cifras antiguas: '+errorText(e));setData(empty());}
+   setData(fresh);setCalendar(scheduled as CalendarEventRow[]);setFactors(commissionFactors as CommissionFactorRow[]);
+  }catch(e){setError('Error de carga; no se muestran cifras antiguas: '+errorText(e));setData(empty());setCalendar([]);setFactors([]);}
   finally{setLoading(false);}
  },[client]);
  useEffect(()=>{void refresh();},[refresh]);
@@ -169,17 +174,19 @@ export default function FinanceApp({client,user,onExit}:{client:SupabaseClient;u
   {message&&<div role="status" className="fs-success">{message}<button onClick={()=>setMessage('')}>Cerrar</button></div>}
   {loading?<div className="fs-panel">Cargando datos privados y verificando integridad…</div>:
   <>
-  {active==='Inicio'&&<SourceDataPanel client={client} mode="home" referenceDate={dateToday()}/>}
-  {['Inicio','Patrimonio'].includes(active)&&<><div className="fs-metrics">{totals.map(metric=><article key={metric.label} className="fs-metric"><small>{metric.label}</small><strong>{metric.value===null?'No conciliado':cop(metric.value)}</strong><span>{metric.note}</span></article>)}</div>
+  {active==='Inicio'&&<Home360 data={data} events={calendar} period={period} today={dateToday()} onNavigate={setActive}/>}
+  {active==='Calendario'&&<FinancialCalendar client={client} user={user} events={calendar} refresh={refresh}/>}
+  {active==='Patrimonio'&&<><div className="fs-metrics">{totals.map(metric=><article key={metric.label} className="fs-metric"><small>{metric.label}</small><strong>{metric.value===null?'No conciliado':cop(metric.value)}</strong><span>{metric.note}</span></article>)}</div>
    <div className="fs-two"><section className="fs-panel"><div className="fs-section"><h2>Flujo de caja · 6 meses</h2><span>Ingresos vs consumo · millones COP</span></div>{data.movements.length===0?<p>Gráfica pendiente: todavía no hay movimientos conciliados en el libro mayor. Las observaciones de origen se muestran por separado.</p>:<ResponsiveContainer width="100%" height={270}><BarChart data={six}><CartesianGrid stroke="#eaf0f5" vertical={false}/><XAxis dataKey="period"/><YAxis tickFormatter={v=>String(Math.round(Number(v)/1000000))+'M'}/><Tooltip formatter={v=>cop(Number(v))}/><Bar dataKey="income" name="Ingresos" fill="#16ad83" radius={[5,5,0,0]}/><Bar dataKey="expenses" name="Consumo" fill="#4a83f5" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer>}</section>
-   <section className="fs-panel"><h2>Composición patrimonial</h2><div className="fs-breakdown"><div><span>Efectivo / cuentas COP</span><b>{data.accounts.length===0?'Sin cuentas conciliadas':cop(balance.cash)}</b></div><div><span>Inversiones valoradas COP</span><b>{data.investments.length===0?'Sin valoración conciliada':cop(balance.investments)}</b></div><div><span>Pasivos documentados/estimados COP</span><b>{cop(balance.debts)}</b></div></div><p>Los movimientos financieros (traspasos, pagos de tarjeta, aportes) no se contabilizan como consumo. Sin todos los activos y sus fechas de corte, el patrimonio neto no está conciliado.</p><button className="fs-small" onClick={()=>setActive('Configuración')}>Revisar cuentas →</button></section></div></>}
-  {active==='Ingresos'&&<><SourceDataPanel client={client} mode="income" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — ingresos y gastos')}<p className="fs-guidance">Para registrar un ingreso, selecciona “Crear” y asigna una categoría de ingreso.</p></>}
+   <section className="fs-panel"><h2>Composición patrimonial</h2><div className="fs-breakdown"><div><span>Efectivo / cuentas COP</span><b>{balance.partial?'Sin conciliar':cop(balance.cash)}</b></div><div><span>Inversiones valoradas COP</span><b>{data.investments.length===0||data.investments.some(i=>i.value_kind!=='documented'||i.valued_at.slice(0,10)>dateToday())?'Sin valoración conciliada':cop(balance.investments)}</b></div><div><span>Pasivos documentados/estimados COP</span><b>{data.debts.length===0||data.debts.some(d=>d.balance_kind!=='documented'||!d.as_of_date||d.as_of_date>dateToday())?'Sin conciliar':cop(balance.debts)}</b></div></div><p>Los movimientos financieros (traspasos, pagos de tarjeta, aportes) no se contabilizan como consumo. Sin todos los activos y sus fechas de corte, el patrimonio neto no está conciliado.</p><button className="fs-small" onClick={()=>setActive('Configuración')}>Revisar cuentas →</button></section></div></>}
+  {active==='Ingresos'&&<><PayrollProjection factors={factors}/><SourceDataPanel client={client} mode="income" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — ingresos y gastos')}<p className="fs-guidance">Para registrar un ingreso, selecciona “Crear” y asigna una categoría de ingreso.</p></>}
   {active==='Gastos'&&<><SourceDataPanel client={client} mode="expenses" referenceDate={dateToday()}/>{listing('movements','Libro de movimientos — gastos conciliados')}</>}
   {active==='Presupuesto'&&<><SourceDataPanel client={client} mode="budget" referenceDate={dateToday()}/><section className="fs-panel"><div className="fs-section"><h2>Presupuesto del mes</h2><button className="fs-small" onClick={()=>open('budgets')}><Plus size={15}/> Crear partida</button></div><div className="fs-budget">{budgets.map(b=><div key={b.id}><div><strong>{b.name}</strong><span>{cop(b.spent)} / {cop(b.budget)}</span></div><progress value={b.spent} max={Math.max(b.budget,b.spent,1)}/><small>{b.remaining<0?'Sobrepasado '+cop(-b.remaining):'Disponible '+cop(b.remaining)}</small></div>)}</div>{!budgets.length&&<p>Sin partidas para este mes. Crea categorías de gasto en Configuración.</p>}</section></>}
   {active==='Créditos'&&<><SourceDataPanel client={client} mode="debts" referenceDate={dateToday()}/>{listing('debts','Créditos · saldos documentados o estimados')}</>}
   {active==='Inversiones'&&<><SourceDataPanel client={client} mode="investments" referenceDate={dateToday()}/>{listing('investments','Inversiones · valoración manual')}</>}
   {active==='Metas'&&listing('goals','Metas de ahorro')}
   {active==='Cerebro financiero'&&<div className="fs-two"><section className="fs-panel"><h2>Diagnóstico por reglas verificables</h2><p>Analiza los datos registrados, sin inferir valores de mercado ni enviar información a una IA externa.</p>{brain.map((f,i)=><article className="fs-insight" key={f.type+f.title}><small>{f.priority.toUpperCase()} · {f.type}</small><h3>{f.title}</h3><p>{f.detail}</p><strong>Acción sugerida: {f.action}</strong><div><button className="fs-small" disabled={busy} onClick={()=>void analyze(i)}>Guardar hallazgo</button></div></article>)}</section><section className="fs-panel"><h2>Trazabilidad</h2><p>Hallazgos registrados: {data.financial_findings.length}</p><p>Esta función no usa modelos externos ni envía tus movimientos a ChatGPT. Las recomendaciones se explican con reglas y datos del mes.</p></section></div>}
+  {active==='Datos migrados'&&<SourceDataPanel client={client} mode="home" referenceDate={dateToday()}/>}
   {active==='Datos migrados'&&<div className="fs-two"><section className="fs-panel"><h2>Conciliación opcional de archivos CSV históricos</h2><p>Las 13 pestañas originales ya están archivadas y el dashboard lee los datos desde Supabase. Este importador es solo para excepciones históricas conciliadas: no necesitas abrir ni mantener Google Sheets para usar FINANZAS SANTI. La vista previa no modifica datos y rechaza registros ambiguos.</p>
     <label>Origen<select value={source} onChange={e=>{setSource(e.target.value as ImportKind);setCsv('');setPreview(null);}}><option value="GASTOS">GASTOS</option><option value="INGRESOS">INGRESOS</option></select></label>
     {source==='INGRESOS'&&<label>Cuenta receptora verificada<select value={incomeAccount} onChange={e=>setIncomeAccount(e.target.value)}><option value="">Selecciona cuenta</option>{data.accounts.map(a=><option key={a.id} value={a.name}>{a.name}</option>)}</select></label>}
