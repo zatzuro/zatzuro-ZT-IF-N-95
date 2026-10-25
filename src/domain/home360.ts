@@ -8,7 +8,8 @@ const validAmount = (value: unknown) => value !== null && value !== '' && Number
  * from reconciled transactions, budgets and unsupported future projections.
  */
 export function buildHome360(data: FinanceData, period: string, today: string) {
-  const balances = calculateBalances(data);
+  const posted = data.movements.filter(movement => movement.occurred_at <= today);
+  const balances = calculateBalances({...data, movements: posted});
   const cashAccounts = balances.balances.filter(account => account.account_type !== 'credit_card');
   const cashReady = cashAccounts.length > 0 && cashAccounts.every(account =>
     account.currency === 'COP' &&
@@ -18,22 +19,22 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
     account.balance_as_of! <= today &&
     account.value !== null
   );
-  const unknownAccountMovements = data.movements.some(movement =>
+  const unknownAccountMovements = posted.some(movement =>
     cashAccounts.some(account => account.id === movement.account_id &&
       (!account.balance_as_of || movement.occurred_at > account.balance_as_of)) &&
     converted(movement) === null
   );
 
-  const inPeriod = data.movements.filter(movement => movement.occurred_at.startsWith(period));
+  const inPeriod = posted.filter(movement => movement.occurred_at.startsWith(period));
   const flowReady = inPeriod.length > 0 && inPeriod.every(movement => converted(movement) !== null);
-  const flow = flowReady ? monthly(data, period) : null;
+  const flow = flowReady ? monthly({...data, movements: inPeriod}, period) : null;
 
   const relevantBudgets = data.budgets.filter(budget =>
     budget.period_start <= period + '-31' && budget.period_end >= period + '-01'
   );
   const budgetCategories = new Set(relevantBudgets.map(budget => budget.category_id));
   const uniqueBudgetCategories = budgetCategories.size === relevantBudgets.length;
-  const missingBudgetValuation = data.movements.some(movement =>
+  const missingBudgetValuation = posted.some(movement =>
     movement.occurred_at.startsWith(period) && movement.movement_type === 'expense' &&
     movement.category_id !== null && budgetCategories.has(movement.category_id) &&
     converted(movement) === null
@@ -42,7 +43,7 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
     relevantBudgets.every(budget => budget.currency === 'COP' &&
       validAmount(budget.amount) && Number(budget.amount) >= 0) &&
     !missingBudgetValuation;
-  const budget = budgetReady ? budgetStatus(data, period) : [];
+  const budget = budgetReady ? budgetStatus({...data, movements: posted}, period) : [];
   const budgetRemaining = budgetReady ? budget.reduce((total, item) => total + item.remaining, 0) : null;
 
   const debtsReady = data.debts.length > 0 && data.debts.every(debt =>
