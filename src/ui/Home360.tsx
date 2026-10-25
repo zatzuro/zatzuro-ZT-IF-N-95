@@ -2,6 +2,7 @@ import {useMemo,useState} from 'react';
 import {AlertTriangle, ArrowRight, CalendarDays, ShieldCheck, Wallet} from 'lucide-react';
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import {buildHome360} from '../domain/home360';
+import {adviseHome} from '../domain/homeAdvice';
 import {cashBreakdown} from '../domain/cashAccounting';
 import {projectDailyCash,type ForecastEvent,type ForecastScenario} from '../domain/cashForecast';
 import type {CalendarEventRow} from './FinancialCalendar';
@@ -13,6 +14,7 @@ type Props = {data:FinanceData; events:CalendarEventRow[]; period:string; today:
 const format=(value:number|null) => value===null?'Sin conciliar':formatCop(value);
 export default function Home360({data,events,period,today,onNavigate}:Props){
  const summary=useMemo(()=>buildHome360(data,period,today),[data,period,today]);
+ const advice=useMemo(()=>adviseHome(data,period,today,events.length),[data,period,today,events.length]);
  const [horizon,setHorizon]=useState<30|60|90>(30);
  const [scenario,setScenario]=useState<ForecastScenario>('base');
  const [coverageConfirmed,setCoverageConfirmed]=useState(false);
@@ -110,6 +112,15 @@ export default function Home360({data,events,period,today,onNavigate}:Props){
    <button type="button" className="fs-small" onClick={()=>onNavigate('Calendario')}>Completar calendario <ArrowRight size={14}/></button>
    <p><Wallet size={14} aria-hidden="true"/> Se necesita caja conciliada, nómina neta y pagos con fecha e importe confirmables. Cambiar horizonte no inventa una curva.</p>
   </section></div>
+  <section className="fs-panel"><div className="fs-section"><h2>Asesor financiero · prioridades con evidencia</h2><span>Máximo tres acciones verificables</span></div>
+   <div className="fs-home360-advice">{advice.map(item=><article key={item.code}>
+    <h3>{item.title}</h3><p><strong>Evidencia:</strong> {item.evidence}</p>
+    <p><strong>Riesgo:</strong> {item.impact}</p>
+    <p><strong>Acción:</strong> {item.action}</p>
+    <button type="button" className="fs-home360-link" onClick={()=>onNavigate(item.target)}>Actuar <ArrowRight size={13}/></button>
+   </article>)}
+   {!advice.length&&<p>No hay alertas automáticas con las reglas disponibles. Esto no sustituye una conciliación completa.</p>}</div>
+  </section>
   {(summary.liquidity===null||summary.debtTotal===null||summary.upcomingObligations===null)&&
    <div className="fs-home360-alert" role="status"><AlertTriangle size={17}/><span>Datos incompletos: no concluyas que tienes capacidad de pago hasta conciliar caja, avance de tarjeta y calendario de obligaciones.</span></div>}
  </section>;
