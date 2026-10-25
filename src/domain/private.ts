@@ -8,7 +8,7 @@ export interface MovementRow {
  amount_cop: number | string | null; external_source?: string | null; external_key?: string | null; transfer_group_id?: string | null; transfer_direction?: 'in'|'out'|null;
 }
 export interface BudgetRow { id: string; category_id: string; period_start: string; period_end: string; amount: number | string; currency: string }
-export interface DebtRow { id: string; name: string; lender?: string; balance: number | string; currency: string; balance_kind: string; annual_rate?: number | string | null; due_day?: number | null }
+export interface DebtRow { id: string; name: string; lender?: string; balance: number | string; currency: string; balance_kind: string; annual_rate?: number | string | null; due_day?: number | null; minimum_payment?: number | string | null; as_of_date?: string | null }
 export interface InvestmentRow { id: string; name: string; market_value: number | string; currency: string; value_kind: string; valued_at: string }
 export interface GoalRow { id: string; name: string; target_amount: number | string; current_amount: number | string; currency: string; status: string; target_date?: string | null }
 export interface Finding { type: string; title: string; detail: string; priority: 'high' | 'medium' | 'low'; action: string }
