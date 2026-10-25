@@ -1,4 +1,5 @@
-import {budgetStatus, calculateBalances, converted, monthly, money, type FinanceData} from './private';
+import {budgetStatus, calculateBalances, converted, money, type FinanceData} from './private';
+import {cashBreakdown} from './cashAccounting';
 
 const validDate = (value?: string) => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)));
 const validAmount = (value: unknown) => value !== null && value !== '' && Number.isFinite(Number(value));
@@ -26,8 +27,8 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
   );
 
   const inPeriod = posted.filter(movement => movement.occurred_at.startsWith(period));
-  const flowReady = inPeriod.length > 0 && inPeriod.every(movement => converted(movement) !== null);
-  const flow = flowReady ? monthly({...data, movements: inPeriod}, period) : null;
+  const lastDay = new Date(Date.UTC(Number(period.slice(0,4)), Number(period.slice(5,7)), 0)).toISOString().slice(0,10);
+  const flow = cashBreakdown({...data, movements: posted}, period+'-01', lastDay);
 
   const relevantBudgets = data.budgets.filter(budget =>
     budget.period_start <= period + '-31' && budget.period_end >= period + '-01'
@@ -48,7 +49,8 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
 
   const debtsReady = data.debts.length > 0 && data.debts.every(debt =>
     debt.currency === 'COP' && debt.balance_kind === 'documented' &&
-    validAmount(debt.balance) && Number(debt.balance) >= 0
+    validAmount(debt.balance) && Number(debt.balance) >= 0 &&
+    validDate(debt.as_of_date ?? undefined) && debt.as_of_date! <= today
   );
   const debtTotal = debtsReady ? data.debts.reduce((sum, debt) => sum + money(debt.balance), 0) : null;
   const dueDayReferences = data.debts.filter(debt =>
@@ -56,6 +58,8 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
   ).map(debt => ({id: debt.id, name: debt.name, day: debt.due_day!}));
 
   const unvaluedCount = data.movements.filter(movement => converted(movement) === null).length;
+  const netWorth = !balances.partial && debtsReady &&
+    data.investments.every(i => i.value_kind==='documented' && i.valued_at.slice(0,10)<=today) ? balances.net : null;
   const undocumentedAccounts = cashAccounts.filter(account =>
     account.balance_kind !== 'documented' || !validDate(account.balance_as_of)
   ).length;
@@ -63,9 +67,17 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
 
   return {
     liquidity: cashReady && !unknownAccountMovements ? cashAccounts.reduce((sum, account) => sum + account.value!, 0) : null,
-    income: flow?.income ?? null,
-    expenses: flow?.expenses ?? null,
-    netFlow: flow?.savings ?? null,
+    income: flow.operationalInflows,
+    expenses: flow.consumption,
+    netFlow: flow.bankNet,
+    bankOutflows: flow.bankOutflows,
+    cardPayments: flow.cardPayments,
+    debtPayments: flow.debtPayments,
+    pendingCashChecks: flow.pendingChecks,
+    availableAfterCommitments: null as number|null,
+    upcomingIncome: null as number|null,
+    upcomingObligations: null as number|null,
+    netWorth,
     budgetRemaining,
     debtTotal,
     dueDayReferences,
@@ -75,11 +87,12 @@ export function buildHome360(data: FinanceData, period: string, today: string) {
       unvaluedCount,
       debtsWithoutDay,
       periodMovements: inPeriod.length,
+      unresolvedDebtSnapshots: data.debts.filter(d => !validDate(d.as_of_date??undefined) || d.as_of_date!>today).length,
       budgetCategories: relevantBudgets.length
     },
     notes: {
       liquidity: 'Saldo documental de cuentas COP al corte informado y movimientos posteriores registrados. No es confirmación bancaria en tiempo real.',
-      flow: 'Libro mayor operativo del mes calendario; no incluye el archivo histórico ni acredita exhaustividad bancaria.',
+      flow: 'Libro mayor operativo del mes calendario: consumo distinto de salidas bancarias. Entradas no son necesariamente nómina.',
       budget: 'Solo presupuestos COP con categorías no duplicadas y consumos valorados.',
       debt: 'Solo deudas con saldo COP documentado. No equivale a cuotas ni fechas de pago.'
     },
