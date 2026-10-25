@@ -92,4 +92,19 @@ describe('private home 360 snapshot', () => {
   expect(buildHome360(data,'2026-10','2026-10-25').debtTotal).toBeNull();
  });
 
+ it('does not certify cash when an unclassified adjustment follows the opening snapshot', () => {
+  const data=empty();data.accounts=[account];
+  data.movements=[{...movement,movement_type:'adjustment'}];
+  expect(buildHome360(data,'2026-10','2026-10-25').liquidity).toBeNull();
+ });
+ it('does not certify cash with a transfer whose counterpart is missing', () => {
+  const data=empty();data.accounts=[account];
+  data.movements=[{...movement,movement_type:'transfer',category_id:null,transfer_group_id:'group1',transfer_direction:'out'}];
+  expect(buildHome360(data,'2026-10','2026-10-25').liquidity).toBeNull();
+ });
+ it('never calls net worth reconciled without a verified complete asset inventory', () => {
+  const data=empty();data.accounts=[account];
+  expect(buildHome360(data,'2026-10','2026-10-25').netWorth).toBeNull();
+ });
+
 });
