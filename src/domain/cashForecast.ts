@@ -23,6 +23,7 @@ export function projectDailyCash(options:{
  if(!calendarVerified)return {ready:false,reason:'Calendario incompleto: faltan ingresos u obligaciones por validar.'};
  if(openingCash===null||!Number.isFinite(openingCash))return {ready:false,reason:'Saldo inicial de caja no conciliado.'};
  const applicable=events.filter(event=>!['paid','cancelled'].includes(event.status));
+ if(applicable.some(event=>event.kind==='credit_advance'))return {ready:false,reason:'Un avance exige contrapartida de deuda acreditada; no se simula como ingreso libre.'};
  if(applicable.some(event=>!Number.isFinite(Number(event.amountCop)) || event.amountCop===null || Number(event.amountCop)<0 ||
   !/^\d{4}-\d{2}-\d{2}$/.test(event.dueDate) || Number.isNaN(Date.parse(event.dueDate)) ||
   event.status==='unverified'))return {ready:false,reason:'Existen eventos pendientes de valoración, fecha o verificación.'};
