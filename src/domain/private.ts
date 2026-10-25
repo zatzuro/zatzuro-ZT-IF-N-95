@@ -38,7 +38,7 @@ export function calculateBalances(data: FinanceData) {
    const convertedMovements=data.movements.filter(m=>m.account_id===account.id && (!account.balance_as_of || m.occurred_at>account.balance_as_of) && converted(m)!==null);
    const delta=convertedMovements.reduce((sum,m)=>{
      const n=converted(m)!;
-     return sum+(m.movement_type==='income'?n:m.movement_type==='transfer'?(m.transfer_direction==='out'?-n:m.transfer_direction==='in'?n:0): ['expense','card_payment','debt_payment','investment_contribution'].includes(m.movement_type)?-n:0);
+     return sum+(['income','financing_inflow','unclassified_inflow'].includes(m.movement_type)?n:m.movement_type==='transfer'?(m.transfer_direction==='out'?-n:m.transfer_direction==='in'?n:0): ['expense','card_payment','debt_payment','investment_contribution'].includes(m.movement_type)?-n:0);
    },0);
    return {...account, value:account.account_type==='credit_card'?null:account.currency==='COP'?money(account.opening_balance)+delta:null};
  });
